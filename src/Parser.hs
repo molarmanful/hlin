@@ -15,9 +15,8 @@ pline :: String -> Parser a
 pline = foldl choice Parser {xs = [], x = "", t = T_UN}
 
 choice :: Parser a -> Char -> Parser a
-choice p@(Parser {t = T_ESC}) = pstr p
-choice p@(Parser {t = T_STR}) = pstr p
-
-pstr :: Parser a -> Char -> Parser a
-pstr p@(Parser {x, t = T_ESC}) '"' = p {x = x ++ "\"", t = T_STR}
-pstr p@(Parser {x, t = T_ESC}) c = p {x = x ++ ['\\', c], t = T_STR}
+choice p@(Parser {x, t = T_ESC}) '"' = p {x = x ++ "\"", t = T_STR}
+choice p@(Parser {x, t = T_ESC}) c = p {x = x ++ ['\\', c], t = T_STR}
+choice p@(Parser {t = T_STR}) '\\' = p {t = T_ESC}
+choice p@(Parser {t = T_STR}) '"' = p {t = T_UN} -- TODO: add clean fn
+choice p@(Parser {x, t = T_STR}) c = p {x = x ++ [c], t = T_STR}
