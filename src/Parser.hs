@@ -6,7 +6,7 @@ import ANY
 
 data Parser a = Parser {xs :: [ANY a], x :: String, t :: Types}
 
-data Types = T_UN | T_NUM | T_STR | T_CMD | T_ESC | T_DEC
+data Types = T_UN | T_NUM | T_STR | T_CMD | T_ESC | T_DEC deriving (Eq)
 
 parse :: String -> Parser a
 parse = pline . head . lines
