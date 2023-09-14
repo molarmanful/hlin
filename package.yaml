@@ -13,8 +13,9 @@ description: Please see the README on GitHub at <https://github.com/molarmanful/
 
 dependencies:
   - base >= 4.7 && < 5
-  - numbers == 3000.*
-  - vector == 0.13.*
+  - numbers
+  - vector
+  - text
 
 ghc-options:
   - -Wall

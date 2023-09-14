@@ -1,71 +1,70 @@
+{-# LANGUAGE GADTs #-}
+
 module ANY where
 
 import Data.Number.CReal
+import qualified Data.Text as T
 
-data ANY a
-  = UN
-  | TF Bool
-  | NUM CReal
-  | STR String
-  | CMD String
-  | FN ((String, Int), [ANY a])
-  | SEQ [ANY a]
+data ANY where
+  UN :: ANY
+  TF :: Bool -> ANY
+  NUM :: CReal -> ANY
+  STR :: T.Text -> ANY
+  CMD :: String -> ANY
+  FN :: (String, Int) -> [ANY] -> ANY
+  SEQ :: [ANY] -> ANY
   deriving (Show)
 
-toForm :: ANY a -> String
+toForm :: ANY -> String
 toForm UN = "UN"
 toForm (TF False) = "$F"
 toForm (TF True) = "$T"
 toForm (STR a) = show a
 toForm (CMD a) = a
 toForm (NUM a) = if a < 0 then show (abs a) ++ "_" else show a
-toForm (FN (_, a)) = "( " ++ unwords (map toForm a) ++ " )"
+toForm (FN _ a) = "( " ++ unwords (map toForm a) ++ " )"
 toForm (SEQ a) = "[ " ++ unwords (map toForm a) ++ " ]"
 
-toSTR :: ANY a1 -> ANY a2
-toSTR = STR . toString
+toSTR :: ANY -> ANY
+toSTR = STR . toText
 
-toNUM :: ANY a1 -> ANY a2
+toNUM :: ANY -> ANY
 toNUM = NUM . toCReal
 
-toTF :: ANY a1 -> ANY a2
+toTF :: ANY -> ANY
 toTF = TF . toBool
 
-toSEQ :: ANY a -> ANY a
+toSEQ :: ANY -> ANY
 toSEQ = SEQ . toList
 
-toBool :: ANY a -> Bool
+toBool :: ANY -> Bool
 toBool UN = False
 toBool (TF a) = a
-toBool (NUM 0) = False
-toBool (NUM _) = True
-toBool (STR "") = False
-toBool (STR _) = True
-toBool (CMD "") = False
-toBool (CMD _) = True
-toBool (FN (_, [])) = False
-toBool (FN _) = True
-toBool (SEQ []) = False
-toBool (SEQ _) = True
+toBool (NUM a) = a == 0
+toBool (STR a) = not $ T.null a
+toBool (CMD a) = not $ null a
+toBool (FN _ a) = not $ null a
+toBool (SEQ a) = not $ null a
 
-toString :: ANY a -> [Char]
-toString UN = ""
-toString (TF a) = show $ fromEnum a
-toString (NUM a) = show a
-toString (STR a) = a
-toString (CMD a) = a
-toString (FN (_, a)) = toString =<< a
-toString (SEQ a) = toString =<< a
+toText :: ANY -> T.Text
+toText UN = T.empty
+toText (TF a) = T.pack $ show $ fromEnum a
+toText (NUM a) = T.pack $ show a
+toText (STR a) = a
+toText (CMD a) = T.pack a
+toText (FN _ a) = T.intercalate (T.singleton ' ') $ map toText a
+toText (SEQ a) = mconcat $ map toText a
 
-toCReal :: ANY a -> CReal
+toCReal :: ANY -> CReal
 toCReal UN = 0
 toCReal (TF a) = toEnum $ fromEnum a
 toCReal (NUM a) = a
-toCReal (STR a) = read a
-toCReal a = read $ show a
+toCReal (STR a) = read $ T.unpack a
+toCReal (FN _ a) = toCReal $ SEQ a
+toCReal a = toCReal $ toSTR a
 
-toList :: ANY a -> [ANY a]
+toList :: ANY -> [ANY]
 toList UN = []
-toList (STR a) = map (STR . show) a
+toList (STR a) = map (STR . T.singleton) $ T.unpack a
 toList (SEQ a) = a
 toList a = [a]
