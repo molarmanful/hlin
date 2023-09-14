@@ -2,9 +2,9 @@
 
 module Parser (parse) where
 
-import ANY
 import Data.Char
 import qualified Data.Text as T
+import Types (ANY (..))
 
 data Parser = Parser {xs :: [ANY], x :: String, t :: Types}
 
@@ -65,10 +65,16 @@ clean (Parser {xs, x, t}) = dParser {xs = xs ++ x'}
     x' = case t of
       T_STR -> [STR $ T.pack x]
       T_ESC -> [STR $ T.pack $ x ++ "\\"]
-      T_CMD -> if all (`elem` "()[]{}") x then [CMD [a] | a <- x] else [CMD x]
-      T_DEC -> case x of
-        "." -> [CMD "."]
-        cs | last cs == '.' -> [CMD $ init cs ++ "."]
-        _ -> [NUM $ read x]
+      T_CMD ->
+        if all (`elem` "()[]{}") x
+          then [CMD [a] | a <- x]
+          else [CMD x]
+      T_DEC ->
+        if x == "."
+          then [CMD x]
+          else
+            if last x == '.'
+              then [NUM $ read $ init x, CMD "."]
+              else [NUM $ read x]
       T_NUM -> [NUM $ read x]
       _ -> []

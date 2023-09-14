@@ -16,6 +16,8 @@ dependencies:
   - numbers
   - vector
   - text
+  - containers
+  - stm-containers
 
 ghc-options:
   - -Wall
