@@ -6,11 +6,6 @@ import qualified Data.Vector as V
 import Parser (parse)
 import Types
 
-newtype ShowANY = ShowANY {fromShowANY :: ANY}
-
-instance Show ANY where
-  show = toForm
-
 toTF :: ANY -> ANY
 toTF = TF . toBool
 
@@ -55,6 +50,7 @@ toText (STR a) = a
 toText (CMD a) = T.pack a
 toText (FN _ a) = T.intercalate (T.singleton ' ') $ map toText a
 toText (SEQ a) = mconcat $ map toText a
+toText (ARR a) = toText $ SEQ $ V.toList a
 
 toCReal :: ANY -> CReal
 toCReal UN = 0

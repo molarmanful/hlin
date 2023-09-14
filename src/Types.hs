@@ -6,17 +6,17 @@ import qualified Data.Map as M
 import Data.Number.CReal
 import qualified Data.Text as T
 import qualified Data.Vector as V
-import qualified StmContainers.Map as C
+import qualified StmContainers.Map as CM
 
 data ENV = ENV
-  { lines :: C.Map PATH ANY,
+  { lines :: CM.Map PATH ANY,
     code :: [ANY],
     path :: PATH,
     stack :: V.Vector ANY,
     scope :: M.Map String ANY,
-    gscope :: C.Map String ANY,
+    gscope :: CM.Map String ANY,
     ids :: M.Map String PATH,
-    gids :: C.Map String PATH,
+    gids :: CM.Map String PATH,
     arr :: [V.Vector ANY]
   }
 
