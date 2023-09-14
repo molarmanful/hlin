@@ -2,8 +2,14 @@ module ANY.Conversions where
 
 import Data.Number.CReal
 import qualified Data.Text as T
+import qualified Data.Vector as V
 import Parser (parse)
 import Types
+
+newtype ShowANY = ShowANY {fromShowANY :: ANY}
+
+instance Show ANY where
+  show = toForm
 
 toTF :: ANY -> ANY
 toTF = TF . toBool
@@ -20,6 +26,17 @@ toFN = flip FN . toParsed
 toSEQ :: ANY -> ANY
 toSEQ = SEQ . toList
 
+toForm :: ANY -> String
+toForm UN = "UN"
+toForm (TF False) = "$F"
+toForm (TF True) = "$T"
+toForm (STR a) = show a
+toForm (CMD a) = a
+toForm (NUM a) = if a < 0 then show (abs a) ++ "_" else show a
+toForm (FN _ a) = "( " ++ unwords (map toForm a) ++ " )"
+toForm (SEQ a) = "[ " ++ unwords (map toForm a) ++ " ]"
+toForm a = toForm $ toSEQ a
+
 toBool :: ANY -> Bool
 toBool UN = False
 toBool (TF a) = a
@@ -28,6 +45,7 @@ toBool (STR a) = not $ T.null a
 toBool (CMD a) = not $ null a
 toBool (FN _ a) = not $ null a
 toBool (SEQ a) = not $ null a
+toBool (ARR a) = not $ V.null a
 
 toText :: ANY -> T.Text
 toText UN = T.empty
