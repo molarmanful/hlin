@@ -25,7 +25,6 @@ library
   exposed-modules:
       ANY
       ANY.Conversions
-      ENVFns
       Parser
       Types
   other-modules:
