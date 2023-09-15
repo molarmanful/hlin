@@ -3,7 +3,7 @@
 module Types where
 
 import qualified Data.Map as M
-import Data.Number.CReal
+import Data.Number.CReal (CReal)
 import qualified Data.Text as T
 import Data.Vector (Vector)
 

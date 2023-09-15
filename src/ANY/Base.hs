@@ -6,8 +6,7 @@ module ANY.Base where
 
 -- import Data.Align
 
-import Data.Align
-import Data.Foldable
+import Data.Foldable (Foldable (toList))
 import qualified Data.Map as M
 import Data.Number.CReal
 import qualified Data.Text as T

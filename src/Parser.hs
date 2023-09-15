@@ -2,7 +2,7 @@
 
 module Parser (parse) where
 
-import Data.Char
+import Data.Char (isDigit)
 import qualified Data.Text as T
 import Types (ANY (..))
 
