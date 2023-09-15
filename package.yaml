@@ -18,6 +18,8 @@ dependencies:
   - text
   - containers
   - stm-containers
+  - semialign
+  - these
 
 ghc-options:
   - -Wall

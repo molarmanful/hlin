@@ -1,0 +1,13 @@
+cradle:
+  cabal:
+    - path: "src"
+      component: "lib:hlin"
+
+    - path: "app/Main.hs"
+      component: "hlin:exe:hlin"
+
+    - path: "app/Paths_hlin.hs"
+      component: "hlin:exe:hlin"
+
+    - path: "test"
+      component: "hlin:test:hlin-test"

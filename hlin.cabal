@@ -24,7 +24,9 @@ source-repository head
 library
   exposed-modules:
       ANY
-      ANY.Conversions
+      ANY.Base
+      ANY.Func
+      ENV
       Parser
       Types
   other-modules:
@@ -36,8 +38,10 @@ library
       base >=4.7 && <5
     , containers
     , numbers
+    , semialign
     , stm-containers
     , text
+    , these
     , vector
   default-language: Haskell2010
 
@@ -53,8 +57,10 @@ executable hlin
     , containers
     , hlin
     , numbers
+    , semialign
     , stm-containers
     , text
+    , these
     , vector
   default-language: Haskell2010
 
@@ -71,7 +77,9 @@ test-suite hlin-test
     , containers
     , hlin
     , numbers
+    , semialign
     , stm-containers
     , text
+    , these
     , vector
   default-language: Haskell2010

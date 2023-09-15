@@ -1,11 +1,8 @@
 module ANY
-  ( ANY (..),
-    module ANY.Conversions,
+  ( module ANY.Base,
+    module ANY.Func,
   )
 where
 
-import ANY.Conversions
-import Types (ANY (..))
-
-instance Show ANY where
-  show = toForm
+import ANY.Base
+import ANY.Func

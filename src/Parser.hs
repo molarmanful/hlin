@@ -6,12 +6,12 @@ import Data.Char
 import qualified Data.Text as T
 import Types (ANY (..))
 
-data Parser = Parser {xs :: [ANY], x :: String, t :: Types}
+data Parser = Parser {xs :: [ANY], x :: String, t :: PFlag}
+
+data PFlag = T_UN | T_NUM | T_STR | T_CMD | T_ESC | T_DEC deriving (Eq)
 
 dParser :: Parser
 dParser = Parser {xs = [], x = "", t = T_UN}
-
-data Types = T_UN | T_NUM | T_STR | T_CMD | T_ESC | T_DEC deriving (Eq)
 
 parse :: String -> [ANY]
 parse ls = case lines ls of
@@ -54,7 +54,7 @@ pnum = pf (`elem` [T_NUM, T_DEC]) T_NUM
 pcmd :: Parser -> Char -> Parser
 pcmd = pf (== T_CMD) T_CMD
 
-pf :: (Types -> Bool) -> Types -> Parser -> Char -> Parser
+pf :: (PFlag -> Bool) -> PFlag -> Parser -> Char -> Parser
 pf b t1 p@(Parser {t}) c = f $ if b t then p else clean p
   where
     f q@(Parser {x}) = q {x = x ++ [c], t = t1}
