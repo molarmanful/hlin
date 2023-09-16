@@ -1,5 +1,3 @@
-{-# LANGUAGE NamedFieldPuns #-}
-
 module Parser (parse) where
 
 import Control.Monad.State

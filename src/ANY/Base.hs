@@ -3,8 +3,6 @@
 
 module ANY.Base where
 
--- import Data.Align
-
 import Data.Foldable (Foldable (toList))
 import Data.Number.CReal
 import qualified Data.Text as T
