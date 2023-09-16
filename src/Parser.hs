@@ -55,7 +55,7 @@ pcmd :: Parser -> Char -> Parser
 pcmd = pf (== T_CMD) T_CMD
 
 pf :: (PFlag -> Bool) -> PFlag -> Parser -> Char -> Parser
-pf b t1 p@(Parser {t}) c = f $ if b t then p else clean p
+pf b t1 p@(Parser {t}) c = f if b t then p else clean p
   where
     f q@(Parser {x}) = q {x = x ++ [c], t = t1}
 

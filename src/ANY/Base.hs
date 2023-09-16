@@ -1,4 +1,3 @@
-{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -7,7 +6,6 @@ module ANY.Base where
 -- import Data.Align
 
 import Data.Foldable (Foldable (toList))
-import qualified Data.Map as M
 import Data.Number.CReal
 import qualified Data.Text as T
 import Data.Vector (Vector)

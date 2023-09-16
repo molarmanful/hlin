@@ -3,12 +3,9 @@ module ANY.Func where
 import ANY.Base
 import Control.Applicative (Applicative (liftA2))
 import Data.Align (Semialign (alignWith))
-import qualified Data.Map as M
 import Data.Number.CReal
-import qualified Data.Text as T
 import Data.These (fromThese)
-import Data.Vector (Vector, (!), (!?))
-import qualified Data.Vector as V
+import Data.Vector (Vector)
 import Types
 import Util
 
@@ -26,7 +23,7 @@ azipWith f a b@(SEQ _) = azipWith f (toSEQ a) b
 azipWith f a b = fARR2 (liftA2 f) a b
 
 azip :: ANY -> ANY -> ANY
-azip = azipWith $ \a b -> SEQ [a, b]
+azip = azipWith \a b -> SEQ [a, b]
 
 azipAll :: ANY -> ANY -> ANY -> ANY -> ANY
 azipAll da db a@(FN p _) b = toFN p $ azipAll da db (toSEQ a) b

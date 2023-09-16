@@ -35,8 +35,8 @@ ghc-options:
 library:
   source-dirs: src
   default-extensions:
-    - ApplicativeDo
     - BangPatterns
+    - BlockArguments
     - ConstraintKinds
     - DataKinds
     - DefaultSignatures
