@@ -74,6 +74,7 @@ library
   build-depends:
       base >=4.7 && <5
     , containers
+    , mtl
     , numbers
     , semialign
     , stm-containers
@@ -93,6 +94,7 @@ executable hlin
       base >=4.7 && <5
     , containers
     , hlin
+    , mtl
     , numbers
     , semialign
     , stm-containers
@@ -113,6 +115,7 @@ test-suite hlin-test
       base >=4.7 && <5
     , containers
     , hlin
+    , mtl
     , numbers
     , semialign
     , stm-containers

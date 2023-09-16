@@ -5,7 +5,8 @@ module ENV.Base where
 
 import ANY
 import Data.List (stripPrefix)
-import qualified Data.Map as Map
+import Data.Map (Map, (!))
+import qualified Data.Map as M
 import GHC.Conc (atomically)
 import qualified StmContainers.Map as CM
 import Types
@@ -13,26 +14,27 @@ import Util
 
 instance Show ENV where
   show :: ENV -> String
-  show (ENV {stack, code}) = unwords $ show <$> [stack, code]
+  show ENV {stack, code} = unwords $ show <$> [stack, code]
 
 run :: String -> IO ENV
 run s = loop $ return dENV {code = parse s}
 
 loop :: IO ENV -> IO ENV
 loop env = do
-  env'@(ENV {code}) <- env
+  e@ENV {code} <- env
   case code of
-    [] -> env
-    x : xs -> loop $ choice x env' {code = xs}
+    [] -> return e
+    x : xs -> loop $ choice x e {code = xs}
 
 choice :: ANY -> ENV -> IO ENV
 choice (CMD a) = cmd a
 choice a = return . push a
 
 cmd :: String -> ENV -> IO ENV
--- syntax-like
+-- syntax/sugar
 cmd (stripPrefix "=$$" -> Just k) env = arg1 (setgvar k) env
-cmd (stripPrefix "=$" -> Just k) env = arg1 (setgvar k) env
+cmd (stripPrefix "=$" -> Just k) env = return $ arg1 (setvar k) env
+-- flow
 -- stack
 cmd "dup" env = rmods1 (\a -> [a, a]) env
 cmd "pop" env = rmods1 (const []) env
@@ -59,22 +61,22 @@ cmd a _ = error $ "CMD \"" ++ a ++ "\" not found"
 -- convenience
 
 push :: ANY -> ENV -> ENV
-push a env@(ENV {stack}) = env {stack = a : stack}
+push a env@ENV {stack} = env {stack = a : stack}
 
 pushs :: [ANY] -> ENV -> ENV
-pushs a env@(ENV {stack}) = env {stack = reverse a ++ stack}
+pushs a env@ENV {stack} = env {stack = reverse a ++ stack}
 
 setvar :: String -> ANY -> ENV -> ENV
-setvar k v env@(ENV {scope}) = env {scope = Map.insert k v scope}
+setvar k v env@ENV {scope} = env {scope = M.insert k v scope}
 
 setgvar :: String -> ANY -> ENV -> IO ENV
-setgvar k v env@(ENV {gscope}) = do
+setgvar k v env@ENV {gscope} = do
   gs <- gscope
   atomically $ CM.insert v k gs
   return env
 
 argN :: Int -> ([ANY] -> ENV -> b) -> ENV -> b
-argN n f env@(ENV {stack}) =
+argN n f env@ENV {stack} =
   if isMin n stack
     then
       let (a, b) = splitAt n stack
