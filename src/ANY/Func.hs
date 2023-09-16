@@ -10,13 +10,14 @@ import Data.These (fromThese)
 import Data.Vector (Vector, (!), (!?))
 import qualified Data.Vector as V
 import Types
+import Util
 
 -- functors
 
 amap :: (ANY -> ANY) -> ANY -> ANY
 amap f (FN p a) = FN p $ f <$> a
 amap f (SEQ a) = SEQ $ f <$> a
-amap f a = fARR (f <$>) a
+amap f a = fARR1 (f <$>) a
 
 azipWith :: (ANY -> ANY -> ANY) -> ANY -> ANY -> ANY
 azipWith f a@(FN p _) b = toFN p $ azipWith f (toSEQ a) b
@@ -35,44 +36,35 @@ azipAll da db a b = fARR2 (alignWith (apair . fromThese da db)) a b
 
 -- vectorizations
 
-vec :: (ANY -> ANY) -> ANY -> ANY
-vec f (Itr a) = amap (vec f) a
-vec f a = f a
+vec1 :: (ANY -> ANY) -> ANY -> ANY
+vec1 f (Itr a) = amap (vec1 f) a
+vec1 f a = f a
 
 vec2 :: (ANY -> ANY -> ANY) -> ANY -> ANY -> ANY
 vec2 f (Itr a) (Itr b) = azipWith (vec2 f) a b
-vec2 f (Itr a) b = vec (`f` b) a
-vec2 f a (Itr b) = vec (f a) b
+vec2 f (Itr a) b = vec1 (`f` b) a
+vec2 f a (Itr b) = vec1 (f a) b
 vec2 f a b = f a b
 
 -- convenience
 
-fNUM :: (CReal -> CReal) -> ANY -> ANY
-fNUM f a = NUM $ f $ toNUMW a
+fNUM1 :: (CReal -> CReal) -> ANY -> ANY
+fNUM1 f a = NUM $ f $ toNUMW a
 
 fNUM2 :: (CReal -> CReal -> CReal) -> ANY -> ANY -> ANY
 fNUM2 = acb2 NUM toNUMW
 
-fSEQ :: ([ANY] -> [ANY]) -> ANY -> ANY
-fSEQ = acb SEQ toSEQW
+fSEQ1 :: ([ANY] -> [ANY]) -> ANY -> ANY
+fSEQ1 = acb SEQ toSEQW
 
 fSEQ2 :: ([ANY] -> [ANY] -> [ANY]) -> ANY -> ANY -> ANY
 fSEQ2 = acb2 SEQ toSEQW
 
-fARR :: (Vector ANY -> Vector ANY) -> ANY -> ANY
-fARR = acb ARR toARRW
+fARR1 :: (Vector ANY -> Vector ANY) -> ANY -> ANY
+fARR1 = acb ARR toARRW
 
 fARR2 :: (Vector ANY -> Vector ANY -> Vector ANY) -> ANY -> ANY -> ANY
 fARR2 = acb2 ARR toARRW
 
 apair :: (ANY, ANY) -> ANY
 apair = SEQ . pair
-
-pair :: (a, a) -> [a]
-pair (a, b) = [a, b]
-
-acb :: (b1 -> c) -> (a -> b) -> (b -> b1) -> a -> c
-acb a b c = a . c . b
-
-acb2 :: (a -> b) -> (t1 -> t2) -> (t2 -> t2 -> a) -> t1 -> t1 -> b
-acb2 a b c d e = a $ c (b d) (b e)

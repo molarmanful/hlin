@@ -16,6 +16,7 @@ import Parser (parse)
 import Types
 
 instance Show ANY where
+  show :: ANY -> String
   show UN = "UN"
   show (TF a)
     | a = "$T"

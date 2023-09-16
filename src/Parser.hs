@@ -29,7 +29,7 @@ choice p@(Parser {t}) c = case t of
     '"' -> p {t = T_STR}
     '.' -> pdec p
     c' | isDigit c' -> pnum p c
-    c' | c' `elem` " \t\r\n" -> clean p
+    c' | c' `elem` (" \t\r\n" :: String) -> clean p
     _ -> pcmd p c
 
 pesc :: Parser -> Char -> Parser
@@ -66,15 +66,13 @@ clean (Parser {xs, x, t}) = dParser {xs = xs ++ x'}
       T_STR -> [STR $ T.pack x]
       T_ESC -> [STR $ T.pack $ x ++ "\\"]
       T_CMD ->
-        if all (`elem` "()[]{}") x
+        if all (`elem` ("()[]{}" :: String)) x
           then [CMD [a] | a <- x]
           else [CMD x]
       T_DEC ->
-        if x == "."
-          then [CMD x]
-          else
-            if last x == '.'
-              then [NUM $ read $ init x, CMD "."]
-              else [NUM $ read x]
+        if
+            | x == "." -> [CMD x]
+            | last x == '.' -> [NUM $ read $ init x, CMD "."]
+            | otherwise -> [NUM $ read x]
       T_NUM -> [NUM $ read x]
       _ -> []

@@ -1,8 +1,4 @@
-module ANY
-  ( module ANY.Base,
-    module ANY.Func,
-  )
-where
+module ANY (module X) where
 
-import ANY.Base
-import ANY.Func
+import ANY.Base as X
+import ANY.Func as X
