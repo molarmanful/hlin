@@ -5,4 +5,7 @@ import Parser (parse)
 import System.Environment (getArgs)
 
 main :: IO ()
-main = getArgs >>= print . reverse . stack . run . head
+main =
+  getArgs
+    >>= run . head
+    >>= print . reverse . stack
