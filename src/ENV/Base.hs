@@ -52,20 +52,51 @@ choice (CMD a) = cmd a
 choice a = push a
 
 cmd :: String -> ENVS ()
-cmd ('\\' : k) = push $ CMD k
+cmd ('\\' : k@(_ : _)) = do
+  ENV {path} <- get
+  push $ toFN path $ CMD k
 cmd (stripPrefix "=$$" -> Just k@(_ : _)) = arg1 (setgvar k)
 cmd (stripPrefix "=$" -> Just k@(_ : _)) = arg1 (setvar k)
 cmd c@(stripPrefix "$$" -> Just k@(_ : _)) = pushgvar c k
 cmd c@('$' : k@(_ : _)) = pushvar c k
 cmd ('#' : _ : _) = return ()
-cmd c = cmd' c
+cmd c = evalvar c c
 
 cmd' :: [Char] -> ENVS ()
 -- vars
+cmd' "UN" = push UN
+cmd' "$T" = push $ TF True
+cmd' "$F" = push $ TF False
 cmd' "$L" = do
   ENV {path = PATH (_, n)} <- get
   push $ NUM $ fromIntegral n
+-- conversion
+cmd' ">?" = mod1 toTF
+cmd' ">N" = mod1 toNUM
+cmd' ">S" = mod1 toSTR
+cmd' ">F" = do
+  ENV {path} <- get
+  mod1 $ toFN path
+cmd' ">Q" = mod1 toSEQ
+cmd' ">A" = mod1 toARR
+cmd' ">M" = mod1 toMAP
+cmd' "," = mod2 \a b -> SEQ [a, b]
+cmd' ",," = mod1 \a -> SEQ [a]
+cmd' ",`" = do
+  env@ENV {stack} <- get
+  put env {stack = [SEQ $ reverse stack]}
+cmd' "\\" = cmd ",," >> cmd ">F"
 -- flow
+cmd' "." = do
+  env@ENV {code, path} <- get
+  case code of
+    [] -> cmd ";"
+    c : cs -> do
+      put env {code = cs}
+      case c of
+        STR a -> push $ STR $ unescText a
+        a@(CMD _) -> mod1 \f -> FN path [f, a]
+        _ -> push c
 cmd' "#" = arg1 eval
 cmd' "@@" = arg1 $ evalLn . toInt
 cmd' "@~" = cmd "$L" >> cmd "+" >> cmd "@@"
@@ -75,6 +106,7 @@ cmd' ";;" = push (NUM (-1)) >> cmd "@~"
 -- I/O
 cmd' ">o" = arg1 $ liftIO . putStr . toStr
 cmd' "n>o" = arg1 $ liftIO . putStrLn . toStr
+cmd' "f>o" = arg1 $ liftIO . print
 -- stack
 cmd' "dup" = mods1 (\a -> [a, a])
 cmd' "pop" = mods1 (const [])
@@ -90,14 +122,18 @@ cmd' "ppop" = mods2 (\_ _ -> [])
 cmd' "qpop" = mods3 (\_ _ _ -> [])
 cmd' "swapd" = mods3 (\a b c -> [b, a, c])
 cmd' "tuck" = mods2 (\a b -> [b, a, b])
+cmd' "dups" = do
+  ENV {stack} <- get
+  push $ SEQ $ reverse stack
 -- TODO: index-based stack manipulation
+cmd' "dip" = arg2 \a f -> evale f >> push a
 -- math
 cmd' "_" = mod1 (vec1 $ fNUM1 negate)
 cmd' "+" = mod2 (vec2 $ fNUM2 (+))
 cmd' "-" = mod2 (vec2 $ fNUM2 (-))
 cmd' "*" = mod2 (vec2 $ fNUM2 (*))
 cmd' "/" = mod2 (vec2 $ fNUM2 (/))
-cmd' x = throwError $ "CMD \"" ++ x ++ "\" not found"
+cmd' x = throwError $ "\"" ++ x ++ "\" not found"
 
 -- convenience
 
@@ -184,20 +220,35 @@ setgvar k v = do
   ENV {gscope} <- get
   setCM v k gscope
 
-pushvar :: String -> String -> ENVS ()
-pushvar c k = do
+getvar :: String -> ENVS (Maybe ANY)
+getvar k = do
   ENV {scope} <- get
   case M.lookup k scope of
-    Nothing -> pushgvar c k
-    Just v -> push v
+    Nothing -> getgvar k
+    v@(Just _) -> return v
+
+getgvar :: String -> ENVS (Maybe ANY)
+getgvar k = do
+  ENV {gscope} <- get
+  getCM k gscope
+
+pushvar :: String -> String -> ENVS ()
+pushvar = fvar getvar push
 
 pushgvar :: String -> String -> ENVS ()
-pushgvar c k = do
-  ENV {gscope} <- get
-  mv <- getCM k gscope
-  case mv of
+pushgvar = fvar getgvar push
+
+evalvar :: String -> String -> ENVS ()
+evalvar = fvar getvar eval
+
+evalgvar :: String -> String -> ENVS ()
+evalgvar = fvar getgvar eval
+
+fvar :: (t1 -> ENVS (Maybe t2)) -> (t2 -> ENVS ()) -> String -> t1 -> ENVS ()
+fvar g f c k =
+  g k >>= \case
     Nothing -> cmd' c
-    Just v -> push v
+    Just v -> f v
 
 argN :: Int -> ([ANY] -> ENVS ()) -> ENVS ()
 argN n f = do
@@ -208,7 +259,7 @@ argN n f = do
        in do
             put env {stack = b}
             f $ reverse a
-    else throwError $ "stack length < " ++ show n
+    else throwError $ "stack len < " ++ show n
 
 modN :: Int -> ([ANY] -> ANY) -> ENVS ()
 modN n f = argN n $ push . f
@@ -243,8 +294,12 @@ mods2 = modsN 2 . lsap2
 mods3 :: (ANY -> ANY -> ANY -> [ANY]) -> ENVS ()
 mods3 = modsN 3 . lsap3
 
-unENVS :: Monad m => ExceptT e (StateT s m) a -> s -> m s
-unENVS f = execStateT (runExceptT f)
+unENVS :: (Monad m) => ExceptT String (StateT s m) a -> s -> m s
+unENVS f = execStateT do
+  r <- runExceptT f
+  case r of
+    Left e -> error e
+    Right a -> return a
 
 setCM :: (MonadIO m, Hashable key) => value -> key -> CM.Map key value -> m ()
 setCM v k = liftIO . atomically . CM.insert v k

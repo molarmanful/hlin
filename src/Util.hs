@@ -1,5 +1,9 @@
 module Util where
 
+import Data.Char (readLitChar)
+import qualified Data.Text as T
+import Text.ParserCombinators.ReadP (eof, many, readP_to_S, readS_to_P)
+
 isMin :: (Eq t, Num t) => t -> [a] -> Bool
 isMin 0 _ = True
 isMin _ [] = False
@@ -24,3 +28,13 @@ lsap2 _ _ = undefined
 lsap3 :: (t1 -> t1 -> t1 -> t2) -> [t1] -> t2
 lsap3 f [a, b, c] = f a b c
 lsap3 _ _ = undefined
+
+unescText :: T.Text -> T.Text
+unescText = T.pack . unescStr . T.unpack
+
+unescStr :: String -> String
+unescStr =
+  fst . head . readP_to_S do
+    s <- many $ readS_to_P readLitChar
+    eof
+    return s

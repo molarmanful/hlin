@@ -29,7 +29,7 @@ instance Show ANY where
     | otherwise = show a
   show (FN _ a) = "( " ++ unwords (show <$> a) ++ " )"
   show (SEQ a) = "[ " ++ unwords (show <$> a) ++ " ]"
-  show a@(ARR _) = show (toSEQ a) ++ "@"
+  show a@(ARR _) = show (toSEQ a) ++ "`"
   show (MAP a) =
     "{ "
       ++ unwords

@@ -10,4 +10,4 @@ main =
   getArgs
     >>= readFile . head
     >>= run
-    >>= print . reverse . stack
+    >>= putStr . unlines . map show . reverse . stack
