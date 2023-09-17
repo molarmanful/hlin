@@ -100,6 +100,10 @@ toSTRW (MAP a) =
     T.intercalate " " . map toSTRW . pair
       <$> M.toList a
 
+toStr :: ANY -> String
+toStr (CMD a) = a
+toStr a = T.unpack $ toSTRW a
+
 toNUMW :: ANY -> CReal
 toNUMW UN = 0
 toNUMW (TF a) = toEnum $ fromEnum a
@@ -109,6 +113,9 @@ toNUMW (STR a) = case readMaybe $ T.unpack a of
   Just b -> b
 toNUMW (FN _ a) = toNUMW $ SEQ a
 toNUMW a = toNUMW $ toSTR a
+
+toInt :: ANY -> Int
+toInt = truncate . toNUMW
 
 toFNW :: ANY -> [ANY]
 toFNW (STR a) = parse [T.unpack a]

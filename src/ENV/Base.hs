@@ -9,6 +9,7 @@ import Control.Monad.State
 import Data.Hashable (Hashable)
 import Data.List (stripPrefix)
 import qualified Data.Map as M
+import qualified Data.Text as T
 import GHC.Conc (atomically)
 import qualified StmContainers.Map as CM
 import Types
@@ -32,7 +33,7 @@ loadLines =
   zipWithM_
     ( \i v -> do
         ENV {lns} <- get
-        setCM (v, UN) (PATH ("", i)) lns
+        setCM (LINE (v, Nothing)) (PATH ("", i)) lns
     )
     [0 ..]
 
@@ -52,15 +53,28 @@ choice a = push a
 
 cmd :: String -> ENVS ()
 cmd ('\\' : k) = push $ CMD k
-cmd (stripPrefix "=$$" -> Just k) = arg1 (setgvar k)
-cmd (stripPrefix "=$" -> Just k) = arg1 (setvar k)
-cmd c@(stripPrefix "$$" -> Just k) = pushgvar c k
-cmd c@('$' : k) = pushvar c k
+cmd (stripPrefix "=$$" -> Just k@(_ : _)) = arg1 (setgvar k)
+cmd (stripPrefix "=$" -> Just k@(_ : _)) = arg1 (setvar k)
+cmd c@(stripPrefix "$$" -> Just k@(_ : _)) = pushgvar c k
+cmd c@('$' : k@(_ : _)) = pushvar c k
+cmd ('#' : _ : _) = return ()
 cmd c = cmd' c
 
 cmd' :: [Char] -> ENVS ()
+-- vars
+cmd' "$L" = do
+  ENV {path = PATH (_, n)} <- get
+  push $ NUM $ fromIntegral n
 -- flow
 cmd' "#" = arg1 eval
+cmd' "@@" = arg1 $ evalLn . toInt
+cmd' "@~" = cmd "$L" >> cmd "+" >> cmd "@@"
+cmd' "@" = push (NUM 0) >> cmd "@~"
+cmd' ";" = push (NUM 1) >> cmd "@~"
+cmd' ";;" = push (NUM (-1)) >> cmd "@~"
+-- I/O
+cmd' ">o" = arg1 $ liftIO . putStr . toStr
+cmd' "n>o" = arg1 $ liftIO . putStrLn . toStr
 -- stack
 cmd' "dup" = mods1 (\a -> [a, a])
 cmd' "pop" = mods1 (const [])
@@ -129,6 +143,32 @@ eval' :: (MonadIO m, MonadState ENV m) => ENV -> ENV -> m ()
 eval' a b = do
   ENV {stack} <- liftIO $ unENVS loop a
   put b {stack}
+
+evalLn :: Int -> ENVS ()
+evalLn n = do
+  l <- fnLn n
+  case l of
+    Nothing -> return ()
+    Just (LINE (_, a)) -> mapM_ eval a
+
+fnLn :: Int -> ENVS (Maybe LINE)
+fnLn n = do
+  ENV {lns, path = PATH (fp, _)} <- get
+  l <- getLn n
+  case l of
+    Nothing -> return Nothing
+    Just (LINE (a, Nothing)) -> do
+      setCM l' p lns
+      return $ Just l'
+      where
+        p = PATH (fp, n)
+        l' = LINE (a, Just $ FN p $ parse [a])
+    Just (LINE _) -> return l
+
+getLn :: Int -> ENVS (Maybe LINE)
+getLn n = do
+  ENV {lns, path = PATH (fp, _)} <- get
+  getCM (PATH (fp, n)) lns
 
 push :: ANY -> ENVS ()
 push a = modify \env -> env {stack = a : stack env}

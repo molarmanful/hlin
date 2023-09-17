@@ -12,7 +12,7 @@ import qualified StmContainers.Map as CM
 type ENVS a = ExceptT String (StateT ENV IO) a
 
 data ENV = ENV
-  { lns :: CM.Map PATH (String, ANY),
+  { lns :: CM.Map PATH LINE,
     code :: [ANY],
     path :: PATH,
     stack :: [ANY],
@@ -37,3 +37,5 @@ data ANY
   deriving (Eq, Ord)
 
 newtype PATH = PATH (FilePath, Int) deriving (Show, Eq, Ord, Hashable)
+
+newtype LINE = LINE (String, Maybe ANY) deriving (Eq)

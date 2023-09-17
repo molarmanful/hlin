@@ -8,5 +8,6 @@ import System.Environment (getArgs)
 main :: IO ()
 main =
   getArgs
-    >>= run . head
+    >>= readFile . head
+    >>= run
     >>= print . reverse . stack
