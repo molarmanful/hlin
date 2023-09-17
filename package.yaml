@@ -21,6 +21,7 @@ dependencies:
   - semialign
   - these
   - mtl
+  - hashable
 
 ghc-options:
   - -Wall

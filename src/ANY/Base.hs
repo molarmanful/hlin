@@ -111,7 +111,7 @@ toNUMW (FN _ a) = toNUMW $ SEQ a
 toNUMW a = toNUMW $ toSTR a
 
 toFNW :: ANY -> [ANY]
-toFNW (STR a) = parse $ T.unpack a
+toFNW (STR a) = parse [T.unpack a]
 toFNW (FN _ a) = a
 toFNW (SEQ a) = a
 toFNW a = [a]

@@ -2,6 +2,7 @@ module Types where
 
 import Control.Monad.Except (ExceptT)
 import Control.Monad.State (StateT)
+import Data.Hashable (Hashable)
 import Data.Map (Map)
 import Data.Number.CReal (CReal)
 import qualified Data.Text as T
@@ -35,4 +36,4 @@ data ANY
   | MAP (Map ANY ANY)
   deriving (Eq, Ord)
 
-newtype PATH = PATH (FilePath, Int) deriving (Show, Eq, Ord)
+newtype PATH = PATH (FilePath, Int) deriving (Show, Eq, Ord, Hashable)

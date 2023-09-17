@@ -14,8 +14,8 @@ data PFlag = T_UN | T_NUM | T_STR | T_CMD | T_ESC | T_DEC deriving (Eq)
 dParser :: ParserS
 dParser = ParserS {xs = [], x = "", t = T_UN}
 
-parse :: String -> [ANY]
-parse ls = case lines ls of
+parse :: [String] -> [ANY]
+parse ls = case ls of
   l : _ -> pline l
   _ -> []
 

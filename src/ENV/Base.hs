@@ -6,6 +6,7 @@ module ENV.Base where
 import ANY
 import Control.Monad.Except
 import Control.Monad.State
+import Data.Hashable (Hashable)
 import Data.List (stripPrefix)
 import qualified Data.Map as M
 import GHC.Conc (atomically)
@@ -19,12 +20,21 @@ instance Show ENV where
 
 run :: String -> IO ENV
 run s =
-  execStateT
-    ( runExceptT do
-        modify \env -> env {code = parse s}
-        loop
+  dENV >>= unENVS do
+    loadLines ls
+    modify \env -> env {code = parse ls}
+    loop
+  where
+    ls = lines s
+
+loadLines :: [String] -> ENVS ()
+loadLines =
+  zipWithM_
+    ( \i v -> do
+        ENV {lns} <- get
+        setCM (v, UN) (PATH ("", i)) lns
     )
-    =<< dENV
+    [0 ..]
 
 loop :: ENVS ()
 loop = do
@@ -41,14 +51,16 @@ choice (CMD a) = cmd a
 choice a = push a
 
 cmd :: String -> ENVS ()
+cmd ('\\' : k) = push $ CMD k
 cmd (stripPrefix "=$$" -> Just k) = arg1 (setgvar k)
 cmd (stripPrefix "=$" -> Just k) = arg1 (setvar k)
 cmd c@(stripPrefix "$$" -> Just k) = pushgvar c k
-cmd c@(stripPrefix "$" -> Just k) = pushvar c k
+cmd c@('$' : k) = pushvar c k
 cmd c = cmd' c
 
 cmd' :: [Char] -> ENVS ()
 -- flow
+cmd' "#" = arg1 eval
 -- stack
 cmd' "dup" = mods1 (\a -> [a, a])
 cmd' "pop" = mods1 (const [])
@@ -64,6 +76,7 @@ cmd' "ppop" = mods2 (\_ _ -> [])
 cmd' "qpop" = mods3 (\_ _ _ -> [])
 cmd' "swapd" = mods3 (\a b c -> [b, a, c])
 cmd' "tuck" = mods2 (\a b -> [b, a, b])
+-- TODO: index-based stack manipulation
 -- math
 cmd' "_" = mod1 (vec1 $ fNUM1 negate)
 cmd' "+" = mod2 (vec2 $ fNUM2 (+))
@@ -92,6 +105,31 @@ dENV = do
         arr = []
       }
 
+eval :: ANY -> ENVS ()
+eval (FN p a) = do
+  env@ENV {code} <- get
+  let e = env {code = a, path = p}
+   in case code of
+        [] -> put e
+        _ -> eval' e env
+eval a = do
+  ENV {path} <- get
+  eval $ toFN path a
+
+evale :: ANY -> ENVS ()
+evale (FN p a) = do
+  env <- get
+  let e = env {code = a, path = p}
+   in eval' e env
+evale a = do
+  ENV {path} <- get
+  eval $ toFN path a
+
+eval' :: (MonadIO m, MonadState ENV m) => ENV -> ENV -> m ()
+eval' a b = do
+  ENV {stack} <- liftIO $ unENVS loop a
+  put b {stack}
+
 push :: ANY -> ENVS ()
 push a = modify \env -> env {stack = a : stack env}
 
@@ -104,7 +142,7 @@ setvar k v = modify \env -> env {scope = M.insert k v $ scope env}
 setgvar :: String -> ANY -> ENVS ()
 setgvar k v = do
   ENV {gscope} <- get
-  liftIO $ atomically $ CM.insert v k gscope
+  setCM v k gscope
 
 pushvar :: String -> String -> ENVS ()
 pushvar c k = do
@@ -116,7 +154,7 @@ pushvar c k = do
 pushgvar :: String -> String -> ENVS ()
 pushgvar c k = do
   ENV {gscope} <- get
-  mv <- liftIO $ atomically $ CM.lookup k gscope
+  mv <- getCM k gscope
   case mv of
     Nothing -> cmd' c
     Just v -> push v
@@ -129,7 +167,7 @@ argN n f = do
       let (a, b) = splitAt n stack
        in do
             put env {stack = b}
-            f (reverse a)
+            f $ reverse a
     else throwError $ "stack length < " ++ show n
 
 modN :: Int -> ([ANY] -> ANY) -> ENVS ()
@@ -164,3 +202,12 @@ mods2 = modsN 2 . lsap2
 
 mods3 :: (ANY -> ANY -> ANY -> [ANY]) -> ENVS ()
 mods3 = modsN 3 . lsap3
+
+unENVS :: Monad m => ExceptT e (StateT s m) a -> s -> m s
+unENVS f = execStateT (runExceptT f)
+
+setCM :: (MonadIO m, Hashable key) => value -> key -> CM.Map key value -> m ()
+setCM v k = liftIO . atomically . CM.insert v k
+
+getCM :: (MonadIO m, Hashable key) => key -> CM.Map key value -> m (Maybe value)
+getCM k = liftIO . atomically . CM.lookup k
