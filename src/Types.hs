@@ -1,36 +1,26 @@
 module Types where
 
-import qualified Data.Map as M
+import Control.Monad.Except (ExceptT)
+import Control.Monad.State (StateT)
+import Data.Map (Map)
 import Data.Number.CReal (CReal)
 import qualified Data.Text as T
 import Data.Vector (Vector)
 import qualified StmContainers.Map as CM
 
+type ENVS a = ExceptT String (StateT ENV IO) a
+
 data ENV = ENV
-  { lns :: IO (CM.Map PATH (String, ANY)),
+  { lns :: CM.Map PATH (String, ANY),
     code :: [ANY],
     path :: PATH,
     stack :: [ANY],
-    scope :: M.Map String ANY,
-    gscope :: IO (CM.Map String ANY),
-    ids :: M.Map String PATH,
-    gids :: IO (CM.Map String PATH),
+    scope :: Map String ANY,
+    gscope :: CM.Map String ANY,
+    ids :: Map String PATH,
+    gids :: CM.Map String PATH,
     arr :: [Vector ANY]
   }
-
-dENV :: ENV
-dENV =
-  ENV
-    { lns = CM.newIO,
-      code = [],
-      path = PATH ("", 0),
-      stack = [],
-      scope = M.empty,
-      gscope = CM.newIO,
-      ids = M.empty,
-      gids = CM.newIO,
-      arr = []
-    }
 
 -- TODO: add MAP
 data ANY
@@ -42,6 +32,7 @@ data ANY
   | FN PATH [ANY]
   | SEQ [ANY]
   | ARR (Vector ANY)
-  deriving (Eq)
+  | MAP (Map ANY ANY)
+  deriving (Eq, Ord)
 
-newtype PATH = PATH (FilePath, Int) deriving (Show, Eq)
+newtype PATH = PATH (FilePath, Int) deriving (Show, Eq, Ord)

@@ -4,12 +4,17 @@
 module ANY.Base where
 
 import Data.Foldable (Foldable (toList))
+import qualified Data.List as L
+import Data.Map (Map)
+import qualified Data.Map as M
 import Data.Number.CReal
 import qualified Data.Text as T
 import Data.Vector (Vector)
 import qualified Data.Vector as V
 import Parser (parse)
+import Text.Read (readMaybe)
 import Types
+import Util
 
 instance Show ANY where
   show :: ANY -> String
@@ -24,7 +29,14 @@ instance Show ANY where
     | otherwise = show a
   show (FN _ a) = "( " ++ unwords (show <$> a) ++ " )"
   show (SEQ a) = "[ " ++ unwords (show <$> a) ++ " ]"
-  show a = show $ toSEQ a
+  show a@(ARR _) = show (toSEQ a) ++ "@"
+  show (MAP a) =
+    "{ "
+      ++ unwords
+        ( L.intercalate " => " . map show . pair
+            <$> M.toList a
+        )
+      ++ " }"
 
 -- conversions
 
@@ -58,6 +70,11 @@ toARR a = case a of
   ARR _ -> a
   _ -> ARR $ toARRW a
 
+toMAP :: ANY -> ANY
+toMAP a = case a of
+  (MAP _) -> a
+  _ -> MAP $ toMAPW a
+
 toTFW :: ANY -> Bool
 toTFW UN = False
 toTFW (TF a) = a
@@ -67,6 +84,7 @@ toTFW (CMD a) = not $ null a
 toTFW (FN _ a) = not $ null a
 toTFW (SEQ a) = not $ null a
 toTFW (ARR a) = not $ null a
+toTFW (MAP a) = not $ null a
 
 toSTRW :: ANY -> T.Text
 toSTRW UN = T.empty
@@ -74,15 +92,21 @@ toSTRW (TF a) = T.pack $ show $ fromEnum a
 toSTRW (NUM a) = T.pack $ show a
 toSTRW (STR a) = a
 toSTRW (CMD a) = T.pack a
-toSTRW (FN _ a) = T.intercalate (T.singleton ' ') $ toSTRW <$> a
+toSTRW (FN _ a) = T.intercalate " " $ toSTRW <$> a
 toSTRW (SEQ a) = mconcat $ toSTRW <$> a
 toSTRW a@(ARR _) = toSTRW $ toSEQ a
+toSTRW (MAP a) =
+  T.intercalate "\n" $
+    T.intercalate " " . map toSTRW . pair
+      <$> M.toList a
 
 toNUMW :: ANY -> CReal
 toNUMW UN = 0
 toNUMW (TF a) = toEnum $ fromEnum a
 toNUMW (NUM a) = a
-toNUMW (STR a) = read $ T.unpack a
+toNUMW (STR a) = case readMaybe $ T.unpack a of
+  Nothing -> error "bad num"
+  Just b -> b
 toNUMW (FN _ a) = toNUMW $ SEQ a
 toNUMW a = toNUMW $ toSTR a
 
@@ -104,6 +128,15 @@ toARRW :: ANY -> Vector ANY
 toARRW UN = V.empty
 toARRW (ARR a) = a
 toARRW a = V.fromList $ toSEQW a
+
+toMAPW :: ANY -> Map ANY ANY
+toMAPW UN = M.empty
+toMAPW (MAP a) = a
+toMAPW a = M.fromList $ f . toSEQW =<< toSEQW a
+  where
+    f [] = []
+    f (x : y : _) = [(x, y)]
+    f (x : _) = [(x, UN)]
 
 -- patterns
 
