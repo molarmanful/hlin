@@ -70,6 +70,8 @@ cmd' "$F" = push $ TF False
 cmd' "$L" = do
   ENV {path = PATH (_, n)} <- get
   push $ NUM $ fromIntegral n
+cmd' "$PI" = push $ NUM pi
+cmd' "$E" = push $ NUM $ exp 1
 -- conversion
 cmd' ">?" = mod1 toTF
 cmd' ">N" = mod1 toNUM
@@ -86,6 +88,9 @@ cmd' ",`" = do
   env@ENV {stack} <- get
   put env {stack = [SEQ $ reverse stack]}
 cmd' "\\" = cmd ",," >> cmd ">F"
+cmd' "'" = mod1 \a -> do
+  toARR a
+
 -- flow
 cmd' "." = do
   env@ENV {code, path} <- get
@@ -108,31 +113,36 @@ cmd' ">o" = arg1 $ liftIO . putStr . toStr
 cmd' "n>o" = arg1 $ liftIO . putStrLn . toStr
 cmd' "f>o" = arg1 $ liftIO . print
 -- stack
-cmd' "dup" = mods1 (\a -> [a, a])
-cmd' "pop" = mods1 (const [])
-cmd' "swap" = mods2 (\a b -> [b, a])
-cmd' "rot" = mods3 (\a b c -> [b, c, a])
-cmd' "rot_" = mods3 (\a b c -> [c, a, b])
-cmd' "dupd" = mods2 (\a b -> [a, a, b])
-cmd' "over" = mods2 (\a b -> [a, b, a])
-cmd' "ddup" = mods2 (\a b -> [a, b, a, b])
-cmd' "edup" = mods3 (\a b c -> [a, b, c, a, b, c])
-cmd' "nip" = mod2 (const id)
-cmd' "ppop" = mods2 (\_ _ -> [])
-cmd' "qpop" = mods3 (\_ _ _ -> [])
-cmd' "swapd" = mods3 (\a b c -> [b, a, c])
-cmd' "tuck" = mods2 (\a b -> [b, a, b])
+cmd' "dup" = mods1 \a -> [a, a]
+cmd' "pop" = mods1 $ const []
+cmd' "swap" = mods2 \a b -> [b, a]
+cmd' "rot" = mods3 \a b c -> [b, c, a]
+cmd' "rot_" = mods3 \a b c -> [c, a, b]
+cmd' "dupd" = mods2 \a b -> [a, a, b]
+cmd' "over" = mods2 \a b -> [a, b, a]
+cmd' "ddup" = mods2 \a b -> [a, b, a, b]
+cmd' "edup" = mods3 \a b c -> [a, b, c, a, b, c]
+cmd' "nip" = mod2 $ const id
+cmd' "ppop" = mods2 \_ _ -> []
+cmd' "qpop" = mods3 \_ _ _ -> []
+cmd' "swapd" = mods3 \a b c -> [b, a, c]
+cmd' "tuck" = mods2 \a b -> [b, a, b]
 cmd' "dups" = do
   ENV {stack} <- get
   push $ SEQ $ reverse stack
 -- TODO: index-based stack manipulation
 cmd' "dip" = arg2 \a f -> evale f >> push a
 -- math
-cmd' "_" = mod1 (vec1 $ fNUM1 negate)
-cmd' "+" = mod2 (vec2 $ fNUM2 (+))
-cmd' "-" = mod2 (vec2 $ fNUM2 (-))
-cmd' "*" = mod2 (vec2 $ fNUM2 (*))
-cmd' "/" = mod2 (vec2 $ fNUM2 (/))
+cmd' "_" = modv1 $ fNUM1 negate
+cmd' "__" = modv1 $ fSTR1 T.reverse
+cmd' "+" = modv2 $ fNUM2 (+)
+cmd' "++" = modv2 $ fSTR2 (<>)
+cmd' "-" = modv2 $ fNUM2 (-)
+cmd' "--" = modv2 $ fSTR2 (`T.replace` "")
+cmd' "*" = modv2 $ fNUM2 (*)
+cmd' "**" = modv2 $ \a b -> STR $ T.replicate (toInt b) $ toSTRW a
+cmd' "/" = modv2 $ fNUM2 (/)
+cmd' "%" = undefined
 cmd' x = throwError $ "\"" ++ x ++ "\" not found"
 
 -- convenience
@@ -169,11 +179,10 @@ eval a = do
 evale :: ANY -> ENVS ()
 evale (FN p a) = do
   env <- get
-  let e = env {code = a, path = p}
-   in eval' e env
+  eval' (env {code = a, path = p}) env
 evale a = do
   ENV {path} <- get
-  eval $ toFN path a
+  evale $ toFN path a
 
 eval' :: (MonadIO m, MonadState ENV m) => ENV -> ENV -> m ()
 eval' a b = do
@@ -293,6 +302,12 @@ mods2 = modsN 2 . lsap2
 
 mods3 :: (ANY -> ANY -> ANY -> [ANY]) -> ENVS ()
 mods3 = modsN 3 . lsap3
+
+modv1 :: (ANY -> ANY) -> ENVS ()
+modv1 = mod1 . vec1
+
+modv2 :: (ANY -> ANY -> ANY) -> ENVS ()
+modv2 = mod2 . vec2
 
 unENVS :: (Monad m) => ExceptT String (StateT s m) a -> s -> m s
 unENVS f = execStateT do

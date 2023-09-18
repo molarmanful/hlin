@@ -5,7 +5,7 @@ import Control.Monad.State (StateT)
 import Data.Hashable (Hashable)
 import Data.Map (Map)
 import Data.Number.CReal (CReal)
-import qualified Data.Text as T
+import Data.Text (Text)
 import Data.Vector (Vector)
 import qualified StmContainers.Map as CM
 
@@ -28,7 +28,7 @@ data ANY
   = UN
   | TF Bool
   | NUM CReal
-  | STR T.Text
+  | STR Text
   | CMD String
   | FN PATH [ANY]
   | SEQ [ANY]

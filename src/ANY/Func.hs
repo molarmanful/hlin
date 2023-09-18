@@ -4,6 +4,8 @@ import ANY.Base
 import Control.Applicative (Applicative (liftA2))
 import Data.Align (Semialign (alignWith))
 import Data.Number.CReal
+import Data.Text (Text)
+import qualified Data.Text as T
 import Data.These (fromThese)
 import Data.Vector (Vector)
 import Types
@@ -50,6 +52,12 @@ fNUM1 f a = NUM $ f $ toNUMW a
 
 fNUM2 :: (CReal -> CReal -> CReal) -> ANY -> ANY -> ANY
 fNUM2 = acb2 NUM toNUMW
+
+fSTR1 :: (Text -> Text) -> ANY -> ANY
+fSTR1 = acb STR toSTRW
+
+fSTR2 :: (Text -> Text -> Text) -> ANY -> ANY -> ANY
+fSTR2 = acb2 STR toSTRW
 
 fSEQ1 :: ([ANY] -> [ANY]) -> ANY -> ANY
 fSEQ1 = acb SEQ toSEQW

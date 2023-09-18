@@ -8,6 +8,7 @@ import qualified Data.List as L
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Number.CReal
+import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Vector (Vector)
 import qualified Data.Vector as V
@@ -86,7 +87,7 @@ toTFW (SEQ a) = not $ null a
 toTFW (ARR a) = not $ null a
 toTFW (MAP a) = not $ null a
 
-toSTRW :: ANY -> T.Text
+toSTRW :: ANY -> Text
 toSTRW UN = T.empty
 toSTRW (TF a) = T.pack $ show $ fromEnum a
 toSTRW (NUM a) = T.pack $ show a
