@@ -103,6 +103,8 @@ cmd' "." = do
         a@(CMD _) -> mod1 \f -> FN path [f, a]
         _ -> push c
 cmd' "#" = arg1 eval
+-- cmd' "Q" = arg1 \f -> do
+--   evalQ f
 cmd' "@@" = arg1 $ evalLn . toInt
 cmd' "@~" = cmd "$L" >> cmd "+" >> cmd "@@"
 cmd' "@" = push (NUM 0) >> cmd "@~"
@@ -131,7 +133,7 @@ cmd' "dups" = do
   ENV {stack} <- get
   push $ SEQ $ reverse stack
 -- TODO: index-based stack manipulation
-cmd' "dip" = arg2 \a f -> evale f >> push a
+cmd' "dip" = arg2 \a f -> evalE f >> push a
 -- math
 cmd' "_" = modv1 $ fNUM1 negate
 cmd' "__" = modv1 $ fSTR1 T.reverse
@@ -171,23 +173,34 @@ eval (FN p a) = do
   let e = env {code = a, path = p}
    in case code of
         [] -> put e
-        _ -> eval' e env
+        _ -> evalScoped e env >>= put
 eval a = do
   ENV {path} <- get
   eval $ toFN path a
 
-evale :: ANY -> ENVS ()
-evale (FN p a) = do
-  env <- get
-  eval' (env {code = a, path = p}) env
-evale a = do
-  ENV {path} <- get
-  evale $ toFN path a
+evalE :: ANY -> ENVS ()
+evalE a = evalE' a >>= put
 
-eval' :: (MonadIO m, MonadState ENV m) => ENV -> ENV -> m ()
-eval' a b = do
-  ENV {stack} <- liftIO $ unENVS loop a
-  put b {stack}
+evalQ :: ANY -> ENVS ANY
+evalQ a = do
+  ENV {stack = b : _} <- evalE' a
+  return b
+
+evalE' :: (MonadState ENV m, MonadIO m) => ANY -> m ENV
+evalE' (FN p f) = do
+  env <- get
+  evalScoped (env {code = f, path = p}) env
+evalE' a = do
+  ENV {path} <- get
+  evalE' $ toFN path a
+
+evalScoped :: MonadIO m => ENV -> ENV -> m ENV
+evalScoped e' e = do
+  ENV {stack} <- eval' e'
+  return e {stack}
+
+eval' :: MonadIO m => ENV -> m ENV
+eval' e = liftIO $ unENVS loop e
 
 evalLn :: Int -> ENVS ()
 evalLn n = do
