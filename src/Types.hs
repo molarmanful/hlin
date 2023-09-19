@@ -5,7 +5,8 @@ import Control.Monad.State (StateT)
 import Data.Hashable (Hashable)
 import Data.Map (Map)
 import Data.Number.CReal (CReal)
-import Data.Text (Text)
+import Data.Sequence (Seq)
+import qualified Data.Text as T
 import Data.Vector (Vector)
 import qualified StmContainers.Map as CM
 
@@ -15,7 +16,7 @@ data ENV = ENV
   { lns :: CM.Map PATH LINE,
     code :: [ANY],
     path :: PATH,
-    stack :: [ANY],
+    stack :: Seq ANY,
     scope :: Map String ANY,
     gscope :: CM.Map String ANY,
     ids :: Map String PATH,
@@ -28,7 +29,7 @@ data ANY
   = UN
   | TF Bool
   | NUM CReal
-  | STR Text
+  | STR T.Text
   | CMD String
   | FN PATH [ANY]
   | SEQ [ANY]

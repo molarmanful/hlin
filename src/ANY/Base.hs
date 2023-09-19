@@ -8,6 +8,7 @@ import qualified Data.List as L
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Number.CReal
+import Data.Sequence (Seq)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Vector (Vector)
@@ -29,8 +30,8 @@ instance Show ANY where
     | a < 0 = show (abs a) ++ "_"
     | otherwise = show a
   show (FN _ a) = "( " ++ unwords (show <$> a) ++ " )"
-  show (SEQ a) = "[ " ++ unwords (show <$> a) ++ " ]"
-  show a@(ARR _) = show (toSEQ a) ++ "`"
+  show (SEQ a) = "[ " ++ unwords (show <$> a) ++ " ]`"
+  show (ARR a) = "[ " ++ unwords (toList $ show <$> a) ++ " ]"
   show (MAP a) =
     "{ "
       ++ unwords
@@ -145,6 +146,12 @@ toMAPW a = M.fromList $ f . toSEQW =<< toSEQW a
     f [] = []
     f (x : y : _) = [(x, y)]
     f (x : _) = [(x, UN)]
+
+seqtoARR :: Seq ANY -> ANY
+seqtoARR = ARR . seqtovec
+
+seqfromARR :: ANY -> Seq ANY
+seqfromARR = vectoseq . toARRW
 
 -- patterns
 

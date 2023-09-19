@@ -4,11 +4,14 @@
 module ENV.Base where
 
 import ANY
+import Control.Monad
 import Control.Monad.Except
 import Control.Monad.State
 import Data.Hashable (Hashable)
 import Data.List (stripPrefix)
 import qualified Data.Map as M
+import Data.Sequence (Seq (..), ViewL (..), ViewR (..), (<|), (><), (|>))
+import qualified Data.Sequence as Seq
 import qualified Data.Text as T
 import GHC.Conc (atomically)
 import qualified StmContainers.Map as CM
@@ -17,7 +20,7 @@ import Util
 
 instance Show ENV where
   show :: ENV -> String
-  show ENV {stack, code} = unwords $ show <$> [stack, code]
+  show ENV {stack, code} = show stack ++ " " ++ show code
 
 run :: String -> IO ENV
 run s =
@@ -86,7 +89,7 @@ cmd' "," = mod2 \a b -> SEQ [a, b]
 cmd' ",," = mod1 \a -> SEQ [a]
 cmd' ",`" = do
   env@ENV {stack} <- get
-  put env {stack = [SEQ $ reverse stack]}
+  put env {stack = Seq.singleton $ seqtoARR stack}
 cmd' "\\" = cmd ",," >> cmd ">F"
 cmd' "'" = mod1 \a -> do
   toARR a
@@ -103,8 +106,7 @@ cmd' "." = do
         a@(CMD _) -> mod1 \f -> FN path [f, a]
         _ -> push c
 cmd' "#" = arg1 eval
--- cmd' "Q" = arg1 \f -> do
---   evalQ f
+cmd' "Q" = arg1 $ evalQ >=> push
 cmd' "@@" = arg1 $ evalLn . toInt
 cmd' "@~" = cmd "$L" >> cmd "+" >> cmd "@@"
 cmd' "@" = push (NUM 0) >> cmd "@~"
@@ -131,7 +133,7 @@ cmd' "swapd" = mods3 \a b c -> [b, a, c]
 cmd' "tuck" = mods2 \a b -> [b, a, b]
 cmd' "dups" = do
   ENV {stack} <- get
-  push $ SEQ $ reverse stack
+  push $ seqtoARR stack
 -- TODO: index-based stack manipulation
 cmd' "dip" = arg2 \a f -> evalE f >> push a
 -- math
@@ -159,7 +161,7 @@ dENV = do
       { lns,
         code = [],
         path = PATH ("", 0),
-        stack = [],
+        stack = Seq.empty,
         scope = M.empty,
         gscope,
         ids = M.empty,
@@ -183,13 +185,15 @@ evalE a = evalE' a >>= put
 
 evalQ :: ANY -> ENVS ANY
 evalQ a = do
-  ENV {stack = b : _} <- evalE' a
-  return b
+  ENV {stack} <- evalE' a
+  return case stack of
+    Empty -> UN
+    _ :|> b -> b
 
 evalE' :: (MonadState ENV m, MonadIO m) => ANY -> m ENV
 evalE' (FN p f) = do
   env <- get
-  evalScoped (env {code = f, path = p}) env
+  evalScoped env {code = f, path = p} env
 evalE' a = do
   ENV {path} <- get
   evalE' $ toFN path a
@@ -229,10 +233,10 @@ getLn n = do
   getCM (PATH (fp, n)) lns
 
 push :: ANY -> ENVS ()
-push a = modify \env -> env {stack = a : stack env}
+push a = modify \env -> env {stack = stack env |> a}
 
-pushs :: [ANY] -> ENVS ()
-pushs a = modify \env -> env {stack = reverse a ++ stack env}
+pushs :: Seq ANY -> ENVS ()
+pushs a = modify \env -> env {stack = stack env >< a}
 
 setvar :: String -> ANY -> ENVS ()
 setvar k v = modify \env -> env {scope = M.insert k v $ scope env}
@@ -272,22 +276,23 @@ fvar g f c k =
     Nothing -> cmd' c
     Just v -> f v
 
-argN :: Int -> ([ANY] -> ENVS ()) -> ENVS ()
+argN :: Int -> (Seq ANY -> ENVS ()) -> ENVS ()
 argN n f = do
   env@ENV {stack} <- get
-  if isMin n stack
-    then
-      let (a, b) = splitAt n stack
-       in do
-            put env {stack = b}
-            f $ reverse a
-    else throwError $ "stack len < " ++ show n
+  let l = Seq.length stack
+   in if l < n
+        then throwError $ "stack len < " ++ show n
+        else
+          let (a, b) = Seq.splitAt (l - n) stack
+           in do
+                put env {stack = a}
+                f b
 
-modN :: Int -> ([ANY] -> ANY) -> ENVS ()
+modN :: Int -> (Seq ANY -> ANY) -> ENVS ()
 modN n f = argN n $ push . f
 
-modsN :: Int -> ([ANY] -> [ANY]) -> ENVS ()
-modsN n f = argN n $ pushs . f
+modsN :: Int -> (Seq ANY -> [ANY]) -> ENVS ()
+modsN n f = argN n $ pushs . Seq.fromList . f
 
 arg1 :: (ANY -> ENVS ()) -> ENVS ()
 arg1 = argN 1 . lsap1

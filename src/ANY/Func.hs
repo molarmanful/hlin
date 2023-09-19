@@ -5,7 +5,6 @@ import Control.Applicative (Applicative (liftA2))
 import Data.Align (Semialign (alignWith))
 import Data.Number.CReal
 import Data.Text (Text)
-import qualified Data.Text as T
 import Data.These (fromThese)
 import Data.Vector (Vector)
 import Types
