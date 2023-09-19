@@ -29,7 +29,7 @@ choice c = do
     T_ESC -> pesc c
     T_STR -> pstr c
     _ -> case c of
-      '"' -> put p {t = T_STR}
+      '"' -> clean >> modify \q -> q {t = T_STR}
       '.' -> pdec
       c'
         | isDigit c' -> pnum c
