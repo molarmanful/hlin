@@ -119,8 +119,7 @@ cmd' "." = do
         a@(CMD _) -> mod1 \f -> FN path [f, a]
         _ -> push c
 cmd' "#" = arg1 eval
--- TODO: vectorize
-cmd' "Q" = arg1 $ evalQ >=> push
+cmd' "Q" = modMv1 evalQ
 cmd' "@@" = arg1 $ evalLn . toInt
 cmd' "@~" = cmd "$L" >> cmd "+" >> cmd "@@"
 cmd' "@" = push (NUM 0) >> cmd "@~"
@@ -309,6 +308,9 @@ modN n f = argN n $ push . f
 modsN :: Int -> (Seq ANY -> [ANY]) -> ENVS ()
 modsN n f = argN n $ pushs . Seq.fromList . f
 
+modMN :: Int -> (Seq ANY -> ENVS ANY) -> ENVS ()
+modMN n f = argN n $ f >=> push
+
 arg1 :: (ANY -> ENVS ()) -> ENVS ()
 arg1 = argN 1 . lsap1
 
@@ -336,11 +338,26 @@ mods2 = modsN 2 . lsap2
 mods3 :: (ANY -> ANY -> ANY -> [ANY]) -> ENVS ()
 mods3 = modsN 3 . lsap3
 
+modM1 :: (ANY -> ENVS ANY) -> ENVS ()
+modM1 = modMN 1 . lsap1
+
+modM2 :: (ANY -> ANY -> ENVS ANY) -> ENVS ()
+modM2 = modMN 2 . lsap2
+
+modM3 :: (ANY -> ANY -> ANY -> ENVS ANY) -> ENVS ()
+modM3 = modMN 3 . lsap3
+
 modv1 :: (ANY -> ANY) -> ENVS ()
 modv1 = mod1 . vec1
 
 modv2 :: (ANY -> ANY -> ANY) -> ENVS ()
 modv2 = mod2 . vec2
+
+modMv1 :: (ANY -> ENVS ANY) -> ENVS ()
+modMv1 = modM1 . vecM1
+
+modMv2 :: (ANY -> ANY -> ENVS ANY) -> ENVS ()
+modMv2 = modM2 . vecM2
 
 unENVS :: (Monad m) => ExceptT String (StateT s m) a -> s -> m s
 unENVS f = execStateT do

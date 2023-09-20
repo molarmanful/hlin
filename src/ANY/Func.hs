@@ -4,6 +4,7 @@ module ANY.Func where
 
 import ANY.Base
 import Control.Applicative (Applicative (liftA2))
+import Control.Monad
 import Data.Align (Semialign (alignWith))
 import Data.Foldable (Foldable (toList))
 import qualified Data.List as L
@@ -12,6 +13,7 @@ import Data.Ratio (denominator, numerator)
 import Data.Text (Text)
 import Data.These (fromThese)
 import Data.Vector (Vector)
+import qualified Data.Vector as V
 import Types
 import Util
 
@@ -101,6 +103,19 @@ azipAll da db a@(SEQ _) b = fSEQ2 (alignWith $ apair . fromThese da db) a b
 azipAll da db a b@(SEQ _) = azipAll da db (toSEQ a) b
 azipAll da db a b = fARR2 (alignWith (apair . fromThese da db)) a b
 
+-- monads
+
+amapM :: Monad f => (ANY -> f ANY) -> ANY -> f ANY
+amapM f (SEQ a) = SEQ <$> mapM f a
+amapM f (FN p a) = FN p <$> mapM f a
+amapM f a = ARR <$> mapM f (toARRW a)
+
+azipWithM :: Monad f => (ANY -> ANY -> f ANY) -> ANY -> ANY -> f ANY
+azipWithM f a@(FN p _) b = toFN p <$> azipWithM f (toSEQ a) b
+azipWithM f (SEQ a) b = SEQ <$> zipWithM f a (toSEQW b)
+azipWithM f a b@(SEQ _) = azipWithM f (toSEQ a) b
+azipWithM f a b = ARR <$> V.zipWithM f (toARRW a) (toARRW b)
+
 -- vectorizations
 
 vec1 :: (ANY -> ANY) -> ANY -> ANY
@@ -112,6 +127,16 @@ vec2 f (Itr a) (Itr b) = azipWith (vec2 f) a b
 vec2 f (Itr a) b = vec1 (`f` b) a
 vec2 f a (Itr b) = vec1 (f a) b
 vec2 f a b = f a b
+
+vecM1 :: Monad f => (ANY -> f ANY) -> ANY -> f ANY
+vecM1 f (Itr a) = amapM (vecM1 f) a
+vecM1 f a = f a
+
+vecM2 :: Monad f => (ANY -> ANY -> f ANY) -> ANY -> ANY -> f ANY
+vecM2 f (Itr a) (Itr b) = azipWithM (vecM2 f) a b
+vecM2 f (Itr a) b = vecM1 (`f` b) a
+vecM2 f a (Itr b) = vecM1 (f a) b
+vecM2 f a b = f a b
 
 -- convenience
 
