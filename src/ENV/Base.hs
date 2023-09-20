@@ -100,13 +100,14 @@ cmd' ">M" = mod1 toMAP
 cmd' ">>M" = modv1 toMAP
 cmd' "," = mod2 \a b -> SEQ [a, b]
 cmd' ",," = mod1 \a -> SEQ [a]
-cmd' ",`" = do
-  env@ENV {stack} <- get
-  put env {stack = Seq.singleton $ seqtoARR stack}
+cmd' ",`" = modStack $ Seq.singleton . seqtoARR
+cmd' ",_" = arg1 $ pushs . seqfromARR . toARR
+cmd' ",,_" = arg1 $ modStack . const . seqfromARR . toARR
 cmd' "\\" = cmd ",," >> cmd ">F"
 cmd' "'" = modM2 \a -> vecM1 \f -> do
   ENV {stack} <- evalSt f $ seqfromARR a
   return $ seqtoARR stack
+cmd' "'_" = arg1 \a -> cmd' ",`" >> push a >> cmd' "Q" >> cmd' ",,_"
 -- flow
 cmd' "." = do
   env@ENV {code, path} <- get
@@ -254,11 +255,14 @@ getLn n = do
   ENV {lns, path = PATH (fp, _)} <- get
   getCM (PATH (fp, n)) lns
 
+modStack :: MonadState ENV m => (Seq ANY -> Seq ANY) -> m ()
+modStack f = modify \env -> env {stack = f $ stack env}
+
 push :: ANY -> ENVS ()
-push a = modify \env -> env {stack = stack env |> a}
+push = modStack . flip (|>)
 
 pushs :: Seq ANY -> ENVS ()
-pushs a = modify \env -> env {stack = stack env >< a}
+pushs = modStack . flip (><)
 
 setvar :: String -> ANY -> ENVS ()
 setvar k v = modify \env -> env {scope = M.insert k v $ scope env}
