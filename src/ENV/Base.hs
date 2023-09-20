@@ -104,9 +104,9 @@ cmd' ",`" = do
   env@ENV {stack} <- get
   put env {stack = Seq.singleton $ seqtoARR stack}
 cmd' "\\" = cmd ",," >> cmd ">F"
-cmd' "'" = mod1 \a -> do
-  toARR a
-
+cmd' "'" = modM2 \a -> vecM1 \f -> do
+  ENV {stack} <- evalSt f $ seqfromARR a
+  return $ seqtoARR stack
 -- flow
 cmd' "." = do
   env@ENV {code, path} <- get
@@ -147,6 +147,8 @@ cmd' "tuck" = mods2 \a b -> [b, a, b]
 cmd' "dups" = do
   ENV {stack} <- get
   push $ seqtoARR stack
+cmd' "clr" = modify \e -> e {stack = Seq.empty}
+cmd' "rev" = modify \e@ENV {stack} -> e {stack = Seq.reverse stack}
 -- TODO: index-based stack manipulation
 cmd' "dip" = arg2 \a f -> evalE f >> push a
 -- math
@@ -158,8 +160,9 @@ cmd' "+`" = mod2 (<>)
 cmd' "-" = modv2 (-)
 cmd' "--" = modv2 $ fSTR2 (`T.replace` "")
 cmd' "*" = modv2 (*)
-cmd' "**" = modv2 $ \a b -> STR $ T.replicate (toInt b) $ toSTRW a
+cmd' "**" = modv2 $ \a n -> STR $ T.replicate (toInt n) $ toSTRW a
 cmd' "/" = modv2 (/)
+-- TODO: this
 cmd' "%" = undefined
 cmd' x = throwError $ "\"" ++ x ++ "\" not found"
 
@@ -205,12 +208,17 @@ evalQ a = do
     _ :|> b -> b
 
 evalE' :: (MonadState ENV m, MonadIO m) => ANY -> m ENV
-evalE' (FN p f) = do
+evalE' f = do
+  ENV {stack} <- get
+  evalSt f stack
+
+evalSt :: (MonadState ENV m, MonadIO m) => ANY -> Seq ANY -> m ENV
+evalSt (FN p f) stack = do
   env <- get
-  evalScoped env {code = f, path = p} env
-evalE' a = do
+  evalScoped env {code = f, path = p, stack} env
+evalSt a s = do
   ENV {path} <- get
-  evalE' $ toFN path a
+  evalSt (toFN path a) s
 
 evalScoped :: MonadIO m => ENV -> ENV -> m ENV
 evalScoped e' e = do

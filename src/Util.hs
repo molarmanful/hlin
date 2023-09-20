@@ -24,6 +24,9 @@ acb a b c = a . c . b
 acb2 :: (a -> b) -> (t1 -> t2) -> (t2 -> t2 -> a) -> t1 -> t1 -> b
 acb2 a b c d e = a $ c (b d) (b e)
 
+acb3 :: (a -> b) -> (t1 -> t2) -> (t2 -> t2 -> t2 -> a) -> t1 -> t1 -> t1 -> b
+acb3 a b c d e f = a $ c (b d) (b e) (b f)
+
 lsap1 :: (t1 -> t2) -> Seq t1 -> t2
 lsap1 f (_ :|> a) = f a
 lsap1 _ _ = undefined

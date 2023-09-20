@@ -2,13 +2,10 @@ module Parser (parse) where
 
 import Control.Monad.State
 import Data.Char (isDigit)
-import Data.Fixed (Fixed)
 import Data.List.Split (splitOn)
 import Data.Ratio ((%))
 import qualified Data.Text as T
-import Numeric (readFloat)
 import Types (ANY (..))
-import Util
 
 type Parser a = State ParserS a
 

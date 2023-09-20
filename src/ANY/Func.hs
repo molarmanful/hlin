@@ -4,7 +4,8 @@ module ANY.Func where
 
 import ANY.Base
 import Control.Applicative (Applicative (liftA2))
-import Control.Monad
+import Control.Monad (zipWithM)
+import Control.Monad.ListM (zipWithM3)
 import Data.Align (Semialign (alignWith))
 import Data.Foldable (Foldable (toList))
 import qualified Data.List as L
@@ -89,16 +90,23 @@ amap f (SEQ a) = SEQ $ f <$> a
 amap f a = fARR1 (f <$>) a
 
 azipWith :: (ANY -> ANY -> ANY) -> ANY -> ANY -> ANY
-azipWith f a@(FN p _) b = toFN p $ azipWith f (toSEQ a) b
+azipWith f a@(FN p _) b@(FN _ _) = toFN p $ azipWith f (toSEQ a) b
 azipWith f a@(SEQ _) b = fSEQ2 (liftA2 f) a b
-azipWith f a b@(SEQ _) = azipWith f (toSEQ a) b
+azipWith f a b@(SEQ _) = fSEQ2 (liftA2 f) a b
 azipWith f a b = fARR2 (liftA2 f) a b
+
+azipWith3 :: (ANY -> ANY -> ANY -> ANY) -> ANY -> ANY -> ANY -> ANY
+azipWith3 f a@(FN p _) b@(FN _ _) c@(FN _ _) = toFN p $ azipWith3 f (toSEQ a) b c
+azipWith3 f a@(SEQ _) b c = fSEQ3 (zipWith3 f) a b c
+azipWith3 f a b@(SEQ _) c = fSEQ3 (zipWith3 f) a b c
+azipWith3 f a b c@(SEQ _) = fSEQ3 (zipWith3 f) a b c
+azipWith3 f a b c = fARR3 (V.zipWith3 f) a b c
 
 azip :: ANY -> ANY -> ANY
 azip = azipWith \a b -> SEQ [a, b]
 
 azipAll :: ANY -> ANY -> ANY -> ANY -> ANY
-azipAll da db a@(FN p _) b = toFN p $ azipAll da db (toSEQ a) b
+azipAll da db a@(FN p _) b@(FN _ _) = toFN p $ azipAll da db (toSEQ a) b
 azipAll da db a@(SEQ _) b = fSEQ2 (alignWith $ apair . fromThese da db) a b
 azipAll da db a b@(SEQ _) = azipAll da db (toSEQ a) b
 azipAll da db a b = fARR2 (alignWith (apair . fromThese da db)) a b
@@ -111,10 +119,17 @@ amapM f (FN p a) = FN p <$> mapM f a
 amapM f a = ARR <$> mapM f (toARRW a)
 
 azipWithM :: Monad f => (ANY -> ANY -> f ANY) -> ANY -> ANY -> f ANY
-azipWithM f a@(FN p _) b = toFN p <$> azipWithM f (toSEQ a) b
+azipWithM f a@(FN p _) b@(FN _ _) = toFN p <$> azipWithM f (toSEQ a) b
 azipWithM f (SEQ a) b = SEQ <$> zipWithM f a (toSEQW b)
 azipWithM f a b@(SEQ _) = azipWithM f (toSEQ a) b
 azipWithM f a b = ARR <$> V.zipWithM f (toARRW a) (toARRW b)
+
+azipWithM3 :: Monad f => (ANY -> ANY -> ANY -> f ANY) -> ANY -> ANY -> ANY -> f ANY
+azipWithM3 f a@(FN p _) b@(FN _ _) c@(FN _ _) = toFN p <$> azipWithM3 f (toSEQ a) b c
+azipWithM3 f (SEQ a) b c = SEQ <$> zipWithM3 f a (toSEQW b) (toSEQW c)
+azipWithM3 f a b@(SEQ _) c = azipWithM3 f (toSEQ a) b c
+azipWithM3 f a b c@(SEQ _) = azipWithM3 f (toSEQ a) b c
+azipWithM3 f a b c = toARR <$> azipWithM3 f (toSEQ a) b c
 
 -- vectorizations
 
@@ -128,6 +143,16 @@ vec2 f (Itr a) b = vec1 (`f` b) a
 vec2 f a (Itr b) = vec1 (f a) b
 vec2 f a b = f a b
 
+vec3 :: (ANY -> ANY -> ANY -> ANY) -> ANY -> ANY -> ANY -> ANY
+vec3 f (Itr a) (Itr b) (Itr c) = azipWith3 (vec3 f) a b c
+vec3 f (Itr a) (Itr b) c = vec2 (\x y -> f x y c) a b
+vec3 f (Itr a) b (Itr c) = vec2 (`f` b) a c
+vec3 f a (Itr b) (Itr c) = vec2 (f a) b c
+vec3 f (Itr a) b c = vec1 (\x -> f x b c) a
+vec3 f a (Itr b) c = vec1 (flip (f a) c) b
+vec3 f a b (Itr c) = vec1 (f a b) c
+vec3 f a b c = f a b c
+
 vecM1 :: Monad f => (ANY -> f ANY) -> ANY -> f ANY
 vecM1 f (Itr a) = amapM (vecM1 f) a
 vecM1 f a = f a
@@ -137,6 +162,16 @@ vecM2 f (Itr a) (Itr b) = azipWithM (vecM2 f) a b
 vecM2 f (Itr a) b = vecM1 (`f` b) a
 vecM2 f a (Itr b) = vecM1 (f a) b
 vecM2 f a b = f a b
+
+vecM3 :: Monad f => (ANY -> ANY -> ANY -> f ANY) -> ANY -> ANY -> ANY -> f ANY
+vecM3 f (Itr a) (Itr b) (Itr c) = azipWithM3 (vecM3 f) a b c
+vecM3 f (Itr a) (Itr b) c = vecM2 (\x y -> f x y c) a b
+vecM3 f (Itr a) b (Itr c) = vecM2 (`f` b) a c
+vecM3 f a (Itr b) (Itr c) = vecM2 (f a) b c
+vecM3 f (Itr a) b c = vecM1 (\x -> f x b c) a
+vecM3 f a (Itr b) c = vecM1 (flip (f a) c) b
+vecM3 f a b (Itr c) = vecM1 (f a b) c
+vecM3 f a b c = f a b c
 
 -- convenience
 
@@ -161,17 +196,26 @@ fSTR1 = acb STR toSTRW
 fSTR2 :: (Text -> Text -> Text) -> ANY -> ANY -> ANY
 fSTR2 = acb2 STR toSTRW
 
+fSTR3 :: (Text -> Text -> Text -> Text) -> ANY -> ANY -> ANY -> ANY
+fSTR3 = acb3 STR toSTRW
+
 fSEQ1 :: ([ANY] -> [ANY]) -> ANY -> ANY
 fSEQ1 = acb SEQ toSEQW
 
 fSEQ2 :: ([ANY] -> [ANY] -> [ANY]) -> ANY -> ANY -> ANY
 fSEQ2 = acb2 SEQ toSEQW
 
+fSEQ3 :: ([ANY] -> [ANY] -> [ANY] -> [ANY]) -> ANY -> ANY -> ANY -> ANY
+fSEQ3 = acb3 SEQ toSEQW
+
 fARR1 :: (Vector ANY -> Vector ANY) -> ANY -> ANY
 fARR1 = acb ARR toARRW
 
 fARR2 :: (Vector ANY -> Vector ANY -> Vector ANY) -> ANY -> ANY -> ANY
 fARR2 = acb2 ARR toARRW
+
+fARR3 :: (Vector ANY -> Vector ANY -> Vector ANY -> Vector ANY) -> ANY -> ANY -> ANY -> ANY
+fARR3 = acb3 ARR toARRW
 
 apair :: (ANY, ANY) -> ANY
 apair = SEQ . pair

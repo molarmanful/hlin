@@ -23,6 +23,7 @@ dependencies:
   - these
   - mtl
   - hashable
+  - monadlist
 
 ghc-options:
   - -Wall
