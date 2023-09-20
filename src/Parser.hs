@@ -2,8 +2,13 @@ module Parser (parse) where
 
 import Control.Monad.State
 import Data.Char (isDigit)
+import Data.Fixed (Fixed)
+import Data.List.Split (splitOn)
+import Data.Ratio ((%))
 import qualified Data.Text as T
+import Numeric (readFloat)
 import Types (ANY (..))
+import Util
 
 type Parser a = State ParserS a
 
@@ -77,7 +82,13 @@ clean = modify \ParserS {xs, x, t} -> dParser {xs = xs ++ f x t}
         | otherwise -> [CMD x]
       T_DEC
         | x == "." -> [CMD x]
-        | last x == '.' -> [NUM $ read $ init x, CMD "."]
+        | last x == '.' -> [INT $ read $ init x, CMD "."]
         | otherwise -> [NUM $ read x]
-      T_NUM -> [NUM $ read x]
+      T_NUM
+        | '.' `elem` x ->
+            let s = splitOn "." x
+                n :: Integer = read $ concat s
+                d = toInteger $ length $ last s
+             in [RAT $ n % (10 ^ d)]
+        | otherwise -> [INT $ read x]
       _ -> []

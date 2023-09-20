@@ -77,14 +77,27 @@ cmd' "$PI" = push $ NUM pi
 cmd' "$E" = push $ NUM $ exp 1
 -- conversion
 cmd' ">?" = mod1 toTF
+cmd' ">>?" = modv1 toTF
 cmd' ">N" = mod1 toNUM
+cmd' ">>N" = modv1 toNUM
+cmd' ">I" = mod1 toINT
+cmd' ">>I" = modv1 toINT
+cmd' ">R" = mod1 toRAT
+cmd' ">>R" = modv1 toRAT
 cmd' ">S" = mod1 toSTR
+cmd' ">>S" = modv1 toSTR
 cmd' ">F" = do
   ENV {path} <- get
   mod1 $ toFN path
+cmd' ">>F" = do
+  ENV {path} <- get
+  modv1 $ toFN path
 cmd' ">Q" = mod1 toSEQ
+cmd' ">>Q" = modv1 toSEQ
 cmd' ">A" = mod1 toARR
+cmd' ">>A" = modv1 toARR
 cmd' ">M" = mod1 toMAP
+cmd' ">>M" = modv1 toMAP
 cmd' "," = mod2 \a b -> SEQ [a, b]
 cmd' ",," = mod1 \a -> SEQ [a]
 cmd' ",`" = do
@@ -106,6 +119,7 @@ cmd' "." = do
         a@(CMD _) -> mod1 \f -> FN path [f, a]
         _ -> push c
 cmd' "#" = arg1 eval
+-- TODO: vectorize
 cmd' "Q" = arg1 $ evalQ >=> push
 cmd' "@@" = arg1 $ evalLn . toInt
 cmd' "@~" = cmd "$L" >> cmd "+" >> cmd "@@"
@@ -137,15 +151,16 @@ cmd' "dups" = do
 -- TODO: index-based stack manipulation
 cmd' "dip" = arg2 \a f -> evalE f >> push a
 -- math
-cmd' "_" = modv1 $ fNUM1 negate
+cmd' "_" = modv1 negate
 cmd' "__" = modv1 $ fSTR1 T.reverse
-cmd' "+" = modv2 $ fNUM2 (+)
+cmd' "+" = modv2 (+)
 cmd' "++" = modv2 $ fSTR2 (<>)
-cmd' "-" = modv2 $ fNUM2 (-)
+cmd' "+`" = mod2 (<>)
+cmd' "-" = modv2 (-)
 cmd' "--" = modv2 $ fSTR2 (`T.replace` "")
-cmd' "*" = modv2 $ fNUM2 (*)
+cmd' "*" = modv2 (*)
 cmd' "**" = modv2 $ \a b -> STR $ T.replicate (toInt b) $ toSTRW a
-cmd' "/" = modv2 $ fNUM2 (/)
+cmd' "/" = modv2 (/)
 cmd' "%" = undefined
 cmd' x = throwError $ "\"" ++ x ++ "\" not found"
 

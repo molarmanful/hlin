@@ -4,7 +4,6 @@ import Control.Monad.Except (ExceptT)
 import Control.Monad.State (StateT)
 import Data.Hashable (Hashable)
 import Data.Map (Map)
-import Data.Number.CReal (CReal)
 import Data.Sequence (Seq)
 import qualified Data.Text as T
 import Data.Vector (Vector)
@@ -28,7 +27,9 @@ data ENV = ENV
 data ANY
   = UN
   | TF Bool
-  | NUM CReal
+  | RAT Rational
+  | INT Integer
+  | NUM Double
   | STR T.Text
   | CMD String
   | FN PATH [ANY]

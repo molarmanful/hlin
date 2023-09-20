@@ -17,8 +17,9 @@ dependencies:
   - vector
   - text
   - containers
-  - stm-containers
   - semialign
+  - split
+  - stm-containers
   - these
   - mtl
   - hashable

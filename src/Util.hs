@@ -2,6 +2,7 @@ module Util where
 
 import Data.Char (readLitChar)
 import Data.Foldable (foldl', toList)
+import Data.Ratio (denominator)
 import Data.Sequence (Seq (..), (|>))
 import qualified Data.Sequence as Seq
 import qualified Data.Text as T
@@ -50,3 +51,9 @@ seqtovec = V.fromList . toList
 
 vectoseq :: Vector a -> Seq a
 vectoseq = foldl' (|>) Seq.empty
+
+canDouble :: Rational -> Bool
+canDouble a = a == toRational (fromRational a :: Double)
+
+canInteger :: Rational -> Bool
+canInteger = (== 1) . denominator

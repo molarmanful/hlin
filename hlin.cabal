@@ -78,6 +78,7 @@ library
     , mtl
     , numbers
     , semialign
+    , split
     , stm-containers
     , text
     , these
@@ -99,6 +100,7 @@ executable hlin
     , mtl
     , numbers
     , semialign
+    , split
     , stm-containers
     , text
     , these
@@ -121,6 +123,7 @@ test-suite hlin-test
     , mtl
     , numbers
     , semialign
+    , split
     , stm-containers
     , text
     , these
