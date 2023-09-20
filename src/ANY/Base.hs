@@ -8,6 +8,7 @@ import qualified Data.Map as M
 import Data.Sequence (Seq)
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Read as T
 import Data.Vector (Vector)
 import qualified Data.Vector as V
 import Parser (parse)
@@ -166,9 +167,9 @@ seqfromARR :: ANY -> Seq ANY
 seqfromARR = vectoseq . toARRW
 
 txtRat :: Text -> Rational
-txtRat a = case readMaybe $ T.unpack a of
-  Nothing -> error "bad num"
-  Just x -> x
+txtRat a = case T.signed T.rational a of
+  Left _ -> error "bad num"
+  Right (x, _) -> x
 
 -- patterns
 
