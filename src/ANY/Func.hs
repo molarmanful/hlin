@@ -3,42 +3,15 @@
 module ANY.Func where
 
 import ANY.Base
-import Control.Applicative (Applicative (liftA2))
 import Control.Monad (zipWithM)
 import Control.Monad.ListM (zipWithM3)
 import Data.Align (Semialign (alignWith))
-import Data.Foldable (Foldable (toList))
-import qualified Data.List as L
-import qualified Data.Map as M
 import Data.Text (Text)
 import Data.These (fromThese)
 import Data.Vector (Vector)
 import qualified Data.Vector as V
-import GHC.Real (Ratio ((:%)))
 import Types
 import Util
-
-instance Show ANY where
-  show :: ANY -> String
-  show UN = "UN"
-  show (TF a)
-    | a = "$T"
-    | otherwise = "$F"
-  show (STR a) = show a
-  show (CMD a) = a
-  show (NUM a) = show a
-  show (RAT (n :% d)) = show n ++ "%" ++ show d
-  show (INT a) = show a
-  show (FN _ a) = "( " ++ unwords (show <$> a) ++ " )"
-  show (SEQ a) = "[ " ++ unwords (show <$> a) ++ " ]`"
-  show (ARR a) = "[ " ++ unwords (toList $ show <$> a) ++ " ]"
-  show (MAP a) =
-    "{ "
-      ++ unwords
-        ( L.intercalate " => " . map show . pair
-            <$> M.toList a
-        )
-      ++ " }"
 
 instance Num ANY where
   fromInteger :: Integer -> ANY
@@ -116,9 +89,9 @@ amap f a = fARR1 (f <$>) a
 
 azipWith :: (ANY -> ANY -> ANY) -> ANY -> ANY -> ANY
 azipWith f a@(FN p _) b@(FN _ _) = toFN p $ azipWith f (toSEQ a) b
-azipWith f a@(SEQ _) b = fSEQ2 (liftA2 f) a b
-azipWith f a b@(SEQ _) = fSEQ2 (liftA2 f) a b
-azipWith f a b = fARR2 (liftA2 f) a b
+azipWith f a@(SEQ _) b = fSEQ2 (zipWith f) a b
+azipWith f a b@(SEQ _) = fSEQ2 (zipWith f) a b
+azipWith f a b = fARR2 (V.zipWith f) a b
 
 azipWith3 :: (ANY -> ANY -> ANY -> ANY) -> ANY -> ANY -> ANY -> ANY
 azipWith3 f a@(FN p _) b@(FN _ _) c@(FN _ _) = toFN p $ azipWith3 f (toSEQ a) b c

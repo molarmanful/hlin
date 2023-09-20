@@ -155,6 +155,8 @@ cmd' "rev" = modify \e@ENV {stack} -> e {stack = Seq.reverse stack}
 cmd' "dip" = arg2 \a f -> evalE f >> push a
 -- math
 -- TODO: remove/rename
+cmd' "=" = modv2 $ \a b -> TF (a == b)
+cmd' "=`" = mod2 $ \a b -> TF (a == b)
 cmd' "frac" = modv1 $ (\(x, y) -> SEQ [x, y]) . properFraction
 cmd' "|_" = modv1 floor
 cmd' "|~" = modv1 round

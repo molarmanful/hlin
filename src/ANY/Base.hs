@@ -1,8 +1,10 @@
 {-# LANGUAGE ViewPatterns #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module ANY.Base where
 
 import Data.Foldable (Foldable (toList))
+import qualified Data.List as L
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Sequence (Seq)
@@ -11,10 +13,66 @@ import qualified Data.Text as T
 import qualified Data.Text.Read as T
 import Data.Vector (Vector)
 import qualified Data.Vector as V
+import GHC.Real (Ratio ((:%)))
 import Parser (parse)
-import Text.Read (readMaybe)
 import Types
 import Util
+
+instance Show ANY where
+  show :: ANY -> String
+  show UN = "UN"
+  show (TF a)
+    | a = "$T"
+    | otherwise = "$F"
+  show (STR a) = show a
+  show (CMD a) = a
+  show (NUM a) = show a
+  show (RAT (n :% d)) = show n ++ "%" ++ show d
+  show (INT a) = show a
+  show (FN _ a) = "( " ++ unwords (show <$> a) ++ " )"
+  show (SEQ a) = "[ " ++ unwords (show <$> a) ++ " ]`"
+  show (ARR a) = "[ " ++ unwords (toList $ show <$> a) ++ " ]"
+  show (MAP a) =
+    "{ "
+      ++ unwords
+        ( L.intercalate " => " . map show . pair
+            <$> M.toList a
+        )
+      ++ " }"
+
+instance Eq ANY where
+  (==) :: ANY -> ANY -> Bool
+  UN == UN = True
+  TF a == TF b = a == b
+  NUM a == Num b = a == toNUMW b
+  Num a == NUM b = toNUMW a == b
+  RAT a == Num b = a == toRATW b
+  Num a == RAT b = toRATW a == b
+  INT a == Num b = a == toINTW b
+  Num a == INT b = toINTW a == b
+  STR a == STR b = a == b
+  Str a == Str b = toSTRW a == toSTRW b
+  FN _ a == FN _ b = a == b
+  SEQ a == SEQ b = a == b
+  ARR a == ARR b = a == b
+  MAP a == MAP b = a == b
+  _ == _ = False
+
+instance Ord ANY where
+  compare a b | a == b = EQ
+  compare UN _ = LT
+  compare _ UN = GT
+  compare (TF False) _ = LT
+  compare _ (TF False) = GT
+  compare (NUM a) (Num b) = compare a $ toNUMW b
+  compare (Num a) (NUM b) = compare (toNUMW a) b
+  compare (INT a) (Num b) = compare a $ toINTW b
+  compare (Num a) (INT b) = compare (toINTW a) b
+  compare (RAT a) (Num b) = compare a $ toRATW b
+  compare (Num a) (RAT b) = compare (toRATW a) b
+  compare (Str a) (Str b) = compare (toSTRW a) $ toSTRW b
+  compare (TF True) _ = GT
+  compare _ (TF True) = LT
 
 -- conversions
 
@@ -176,29 +234,37 @@ txtRat a = case T.signed T.rational a of
 pattern Num :: ANY -> ANY
 pattern Num a <- (getNum -> Just a)
 
-getNum :: ANY -> Maybe ANY
-getNum a@(Frac _) = Just a
-getNum a@(NUM _) = Just a
-getNum _ = Nothing
-
 pattern Frac :: ANY -> ANY
 pattern Frac a <- (getFrac -> Just a)
+
+pattern BigN :: ANY -> ANY
+pattern BigN a <- (getFrac -> Just a)
+
+pattern Str :: ANY -> ANY
+pattern Str a <- (getStr -> Just a)
+
+pattern Itr :: ANY -> ANY
+pattern Itr a <- (getItr -> Just a)
+
+getNum :: ANY -> Maybe ANY
+getNum a@(Frac _) = Just a
+getNum a@(INT _) = Just a
+getNum _ = Nothing
 
 getFrac :: ANY -> Maybe ANY
 getFrac a@(RAT _) = Just a
 getFrac a@(NUM _) = Just a
 getFrac _ = Nothing
 
-pattern BigN :: ANY -> ANY
-pattern BigN a <- (getFrac -> Just a)
-
 getBigN :: ANY -> Maybe ANY
 getBigN a@(INT _) = Just a
 getBigN a@(RAT _) = Just a
 getBigN _ = Nothing
 
-pattern Itr :: ANY -> ANY
-pattern Itr a <- (getItr -> Just a)
+getStr :: ANY -> Maybe ANY
+getStr a@(STR _) = Just a
+getStr a@(CMD _) = Just a
+getStr _ = Nothing
 
 getItr :: ANY -> Maybe ANY
 getItr a@(SEQ _) = Just a

@@ -27,17 +27,16 @@ data ENV = ENV
 data ANY
   = UN
   | TF Bool
-  | NUM Double
   | RAT Rational
   | INT Integer
+  | NUM Double
   | STR T.Text
   | CMD String
   | FN PATH [ANY]
   | SEQ [ANY]
   | ARR (Vector ANY)
   | MAP (Map ANY ANY)
-  deriving (Eq, Ord)
 
 newtype PATH = PATH (FilePath, Int) deriving (Show, Eq, Ord, Hashable)
 
-newtype LINE = LINE (String, Maybe ANY) deriving (Eq)
+newtype LINE = LINE (String, Maybe ANY)
