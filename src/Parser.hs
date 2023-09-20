@@ -80,7 +80,7 @@ clean = modify \ParserS {xs, x, t} -> dParser {xs = xs ++ f x t}
       T_DEC
         | x == "." -> [CMD x]
         | last x == '.' -> [INT $ read $ init x, CMD "."]
-        | otherwise -> [NUM $ read x]
+        | otherwise -> [NUM $ read $ '0' : x]
       T_NUM
         | '.' `elem` x ->
             let s = splitOn "." x

@@ -27,9 +27,9 @@ data ENV = ENV
 data ANY
   = UN
   | TF Bool
+  | NUM Double
   | RAT Rational
   | INT Integer
-  | NUM Double
   | STR T.Text
   | CMD String
   | FN PATH [ANY]

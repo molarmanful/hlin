@@ -68,13 +68,13 @@ toNum a = ratNum (txtRat $ toSTRW a :: Rational)
 toFrac :: ANY -> ANY
 toFrac a@(Frac _) = a
 toFrac a@(INT _) = toRAT a
-toFrac a = toNum a
+toFrac a = toRAT a
 
 ratNum :: Rational -> ANY
 ratNum n =
   if
-      | canDouble n -> NUM $ realToFrac n
       | canInteger n -> INT $ truncate n
+      | canDouble n -> NUM $ realToFrac n
       | otherwise -> RAT n
 
 toTFW :: ANY -> Bool

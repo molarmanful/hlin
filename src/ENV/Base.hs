@@ -127,6 +127,7 @@ cmd' "@" = push (NUM 0) >> cmd "@~"
 cmd' ";" = push (NUM 1) >> cmd "@~"
 cmd' ";;" = push (NUM (-1)) >> cmd "@~"
 -- I/O
+cmd' "i>" = liftIO getLine >>= push . STR . T.pack
 cmd' ">o" = arg1 $ liftIO . putStr . toStr
 cmd' "n>o" = arg1 $ liftIO . putStrLn . toStr
 cmd' "f>o" = arg1 $ liftIO . print
@@ -153,6 +154,11 @@ cmd' "rev" = modify \e@ENV {stack} -> e {stack = Seq.reverse stack}
 -- TODO: index-based stack manipulation
 cmd' "dip" = arg2 \a f -> evalE f >> push a
 -- math
+-- TODO: remove/rename
+cmd' "frac" = modv1 $ (\(x, y) -> SEQ [x, y]) . properFraction
+cmd' "|_" = modv1 floor
+cmd' "|~" = modv1 round
+cmd' "|^" = modv1 ceiling
 cmd' "_" = modv1 negate
 cmd' "__" = modv1 $ fSTR1 T.reverse
 cmd' "+" = modv2 (+)
@@ -165,6 +171,8 @@ cmd' "**" = modv2 $ \a n -> STR $ T.replicate (toInt n) $ toSTRW a
 cmd' "/" = modv2 (/)
 -- TODO: this
 cmd' "%" = undefined
+-- lazy
+cmd' "%%" = undefined
 cmd' x = throwError $ "\"" ++ x ++ "\" not found"
 
 -- convenience

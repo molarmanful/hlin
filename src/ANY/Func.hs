@@ -10,11 +10,11 @@ import Data.Align (Semialign (alignWith))
 import Data.Foldable (Foldable (toList))
 import qualified Data.List as L
 import qualified Data.Map as M
-import Data.Ratio (denominator, numerator)
 import Data.Text (Text)
 import Data.These (fromThese)
 import Data.Vector (Vector)
 import qualified Data.Vector as V
+import GHC.Real (Ratio ((:%)))
 import Types
 import Util
 
@@ -26,9 +26,9 @@ instance Show ANY where
     | otherwise = "$F"
   show (STR a) = show a
   show (CMD a) = a
-  show (RAT a) = show (numerator a) ++ "%" ++ show (denominator a)
-  show (INT a) = show a
   show (NUM a) = show a
+  show (RAT (n :% d)) = show n ++ "%" ++ show d
+  show (INT a) = show a
   show (FN _ a) = "( " ++ unwords (show <$> a) ++ " )"
   show (SEQ a) = "[ " ++ unwords (show <$> a) ++ " ]`"
   show (ARR a) = "[ " ++ unwords (toList $ show <$> a) ++ " ]"
@@ -64,10 +64,35 @@ instance Fractional ANY where
   fromRational = RAT
 
   (/) :: ANY -> ANY -> ANY
+  NUM a / b = NUM $ a / toNUMW b
+  a / b@(NUM _) = toNUM a / b
   BigN a / b = RAT $ toRATW a / toRATW b
   a / BigN b = toRAT a / b
-  NUM a / b = NUM $ a / toNUMW b
   a / b = toFrac a / b
+
+instance Real ANY where
+  toRational :: ANY -> Rational
+  toRational = toRATW
+
+instance Enum ANY where
+  toEnum :: Int -> ANY
+  toEnum = INT . toInteger
+
+  fromEnum :: ANY -> Int
+  fromEnum = fromInteger . toINTW
+
+instance Integral ANY where
+  toInteger :: ANY -> Integer
+  toInteger = toINTW
+
+  quotRem :: ANY -> ANY -> (ANY, ANY)
+  quotRem a b = (acb2 INT toINTW quot a b, acb2 INT toINTW rem a b)
+
+instance RealFrac ANY where
+  properFraction :: Integral b => ANY -> (b, ANY)
+  properFraction (INT a) = (fromInteger a, INT 0)
+  properFraction (NUM a) = case properFraction a of (x, y) -> (x, NUM y)
+  properFraction a = case properFraction $ toRATW a of (x, y) -> (x, RAT y)
 
 instance Semigroup ANY where
   (<>) :: ANY -> ANY -> ANY
@@ -182,12 +207,12 @@ fNum1 f (NUM a) = NUM $ f a
 fNum1 f a = fNum1 f $ toNum a
 
 fNum2 :: (forall a. Num a => a -> a -> a) -> ANY -> ANY -> ANY
+fNum2 f (NUM a) b = NUM $ f a (toNUMW b)
+fNum2 f a b@(NUM _) = fNum2 f (toNUM a) b
 fNum2 f (RAT a) b = RAT $ f a (toRATW b)
 fNum2 f a b@(RAT _) = fNum2 f (toRAT a) b
 fNum2 f (INT a) b = INT $ f a (toINTW b)
 fNum2 f a b@(INT _) = fNum2 f (toINT a) b
-fNum2 f (NUM a) b = NUM $ f a (toNUMW b)
-fNum2 f a b@(NUM _) = fNum2 f (toNUM a) b
 fNum2 f a b = fNum2 f (toNum a) b
 
 fSTR1 :: (Text -> Text) -> ANY -> ANY
