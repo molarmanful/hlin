@@ -87,4 +87,5 @@ toCmp a =
       | otherwise -> EQ
 
 iinv :: Foldable t => Int -> t a -> Int
-iinv i s = (-i - 1) `mod` length s
+iinv i s = if n < 0 then n + length s else n
+  where n = -i - 1

@@ -186,7 +186,18 @@ cmds =
               y = getSt 0 s
            in Seq.update (iinv (toInt a) s) y $ Seq.update (iinv 0 s) x s
       ),
-      -- TODO: roll
+      ( "roll",
+        arg1 \a -> do
+          ENV {stack} <- get
+          push a >> cmd "nix"
+          push $ getSt a stack
+      ),
+      ( "roll_",
+        arg1 \a -> do
+          ENV {stack} <- get
+          push a >> cmd "trade"
+          push $ getSt 0 stack
+      ),
       ("dip", arg2 \a f -> evalE f >> push a),
       -- math
       ("<=>", modv2 $ \a b -> INT $ fromCmp $ compare a b),
