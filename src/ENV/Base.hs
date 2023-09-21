@@ -7,9 +7,10 @@ import ANY
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.State
+import Data.HashMap.Lazy (HashMap)
+import qualified Data.HashMap.Lazy as HM
 import Data.Hashable (Hashable)
 import Data.List (stripPrefix)
-import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
 import Data.Sequence (Seq (..), (><), (|>))
 import qualified Data.Sequence as Seq
@@ -65,154 +66,172 @@ cmd c@('$' : k@(_ : _)) = pushvar c k
 cmd ('#' : _ : _) = return ()
 cmd c = evalvar c c
 
-cmd' :: [Char] -> ENVS ()
--- vars
-cmd' "UN" = push UN
-cmd' "$T" = push $ TF True
-cmd' "$F" = push $ TF False
-cmd' "$L" = do
-  ENV {path = PATH (_, n)} <- get
-  push $ NUM $ fromIntegral n
-cmd' "$PI" = push pi
-cmd' "$E" = push $ exp 1
-cmd' "$W" = push $ SEQ [0 ..]
-cmd' "$N" = push $ SEQ [1 ..]
--- conversion
-cmd' ">?" = mod1 toTF
-cmd' ">>?" = modv1 toTF
-cmd' ">N" = mod1 toNUM
-cmd' ">>N" = modv1 toNUM
-cmd' ">N%" = mods1 $ pair . properFraction
-cmd' ">I" = mod1 toINT
-cmd' ">>I" = modv1 toINT
-cmd' ">R" = mod1 toRAT
-cmd' ">>R" = modv1 toRAT
-cmd' ">S" = mod1 toSTR
-cmd' ">>S" = modv1 toSTR
-cmd' ">F" = do
-  ENV {path} <- get
-  mod1 $ toFN path
-cmd' ">>F" = do
-  ENV {path} <- get
-  modv1 $ toFN path
-cmd' ">Q" = mod1 toSEQ
-cmd' ">>Q" = modv1 toSEQ
-cmd' ">A" = mod1 toARR
-cmd' ">>A" = modv1 toARR
-cmd' ">M" = mod1 toMAP
-cmd' ">>M" = modv1 toMAP
-cmd' "," = mod2 \a b -> SEQ [a, b]
-cmd' ",," = mod1 \a -> SEQ [a]
-cmd' ",`" = modStack $ Seq.singleton . seqtoARR
-cmd' ",_" = arg1 $ pushs . seqfromARR . toARR
-cmd' ",,_" = arg1 $ modStack . const . seqfromARR . toARR
-cmd' "\\" = cmd ",," >> cmd ">F"
-cmd' "'" = modM2 \a -> vecM1 \f -> do
-  ENV {stack} <- evalSt f $ seqfromARR a
-  return $ seqtoARR stack
-cmd' "'_" = arg1 \a -> cmd' ",`" >> push a >> cmd' "Q" >> cmd' ",,_"
--- flow
-cmd' "." = do
-  env@ENV {code, path} <- get
-  case code of
-    [] -> cmd ";"
-    c : cs -> do
-      put env {code = cs}
-      case c of
-        STR a -> push $ STR $ unescText a
-        a@(CMD _) -> mod1 \f -> FN path [f, a]
-        _ -> push c
-cmd' "#" = arg1 eval
-cmd' "Q" = modMv1 evalQ
-cmd' "@@" = arg1 $ evalLn . toInt
-cmd' "@~" = cmd "$L" >> cmd "+" >> cmd "@@"
-cmd' "@" = push 0 >> cmd "@~"
-cmd' ";" = push 1 >> cmd "@~"
-cmd' ";;" = push (-1) >> cmd "@~"
--- I/O
-cmd' "i>" = liftIO getLine >>= push . STR . T.pack
-cmd' ">o" = arg1 $ liftIO . putStr . toStr
-cmd' "n>o" = arg1 $ liftIO . putStrLn . toStr
-cmd' "f>o" = arg1 $ liftIO . print
--- stack
-cmd' "dup" = mods1 \a -> [a, a]
-cmd' "pop" = mods1 $ const []
-cmd' "swap" = mods2 \a b -> [b, a]
-cmd' "rot" = mods3 \a b c -> [b, c, a]
-cmd' "rot_" = mods3 \a b c -> [c, a, b]
-cmd' "dupd" = mods2 \a b -> [a, a, b]
-cmd' "over" = mods2 \a b -> [a, b, a]
-cmd' "ddup" = mods2 \a b -> [a, b, a, b]
-cmd' "edup" = mods3 \a b c -> [a, b, c, a, b, c]
-cmd' "nip" = mod2 $ const id
-cmd' "ppop" = mods2 \_ _ -> []
-cmd' "qpop" = mods3 \_ _ _ -> []
-cmd' "swapd" = mods3 \a b c -> [b, a, c]
-cmd' "tuck" = mods2 \a b -> [b, a, b]
-cmd' "dups" = do
-  ENV {stack} <- get
-  push $ seqtoARR stack
-cmd' "clr" = modify \e -> e {stack = Seq.empty}
-cmd' "rev" = modify \e@ENV {stack} -> e {stack = Seq.reverse stack}
-cmd' "pick" = modM1 getSt
--- TODO: index-based stack manipulation
-cmd' "dip" = arg2 \a f -> evalE f >> push a
--- math
-cmd' "<=>" = modv2 $ \a b -> INT $ fromCmp $ compare a b
-cmd' "<=>`" = mod2 $ \a b -> INT $ fromCmp $ compare a b
-cmd' "=" = modv2 $ fTF2 (==)
-cmd' "=`" = mod2 $ fTF2 (==)
-cmd' "<" = modv2 $ fTF2 (<)
-cmd' "<`" = mod2 $ fTF2 (<)
-cmd' ">" = modv2 $ fTF2 (>)
-cmd' ">`" = mod2 $ fTF2 (>)
-cmd' "<=" = modv2 $ fTF2 (<=)
-cmd' "<=`" = mod2 $ fTF2 (<=)
-cmd' ">=" = modv2 $ fTF2 (>=)
-cmd' ">=`" = mod2 $ fTF2 (>=)
-cmd' "|_" = modv1 floor
-cmd' "|~" = modv1 round
-cmd' "|^" = modv1 ceiling
-cmd' "_" = modv1 negate
-cmd' "__" = modv1 $ fSTR1 T.reverse
-cmd' "+" = modv2 (+)
-cmd' "++" = modv2 $ fSTR2 (<>)
-cmd' "+`" = mod2 (<>)
-cmd' "-" = modv2 (-)
-cmd' "--" = modv2 $ fSTR2 (`T.replace` "")
-cmd' "*" = modv2 (*)
-cmd' "**" = modv2 $ \a n -> STR $ T.replicate (toInt n) $ toSTRW a
-cmd' "/" = modv2 (/)
-cmd' "/~" = modv2 div
-cmd' "%" = modv2 afmod
-cmd' "%%" = undefined
-cmd' "^" = modv2 apow
-cmd' "abs" = modv1 abs
-cmd' "+-" = modv1 signum
-cmd' "E" = push 10 >> cmd "swap" >> cmd "^"
-cmd' "e^" = modv1 exp
-cmd' "logN" = modv2 $ flip logBase
-cmd' "log" = push 10 >> cmd "logN"
-cmd' "ln" = modv1 log
-cmd' "sin" = modv1 sin
-cmd' "cos" = modv1 cos
-cmd' "tan" = modv1 tan
-cmd' "sin_" = modv1 asin
-cmd' "cos_" = modv1 acos
-cmd' "tan_" = modv1 atan
-cmd' "sinh" = modv1 sinh
-cmd' "cosh" = modv1 cosh
-cmd' "tanh" = modv1 tanh
-cmd' "sinh_" = modv1 asinh
-cmd' "cosh_" = modv1 acosh
-cmd' "tanh_" = modv1 atanh
--- lazy
-cmd' "tk" = undefined
-cmd' "dp" = undefined
-cmd' "rep" = modv1 $ SEQ . repeat
-cmd' "cyc" = mod1 $ fSEQ1 cycle
--- TODO: range
-cmd' x = throwError $ "\"" ++ x ++ "\" not found"
+cmd' :: String -> ENVS ()
+cmd' x = case HM.lookup x cmds of
+  Nothing -> throwError $ "\"" ++ x ++ "\" not found"
+  Just a -> a
+
+cmds :: HashMap String (ENVS ())
+cmds =
+  HM.fromList
+    [ -- vars
+      ("UN", push UN),
+      ("$T", push $ TF True),
+      ("$F", push $ TF False),
+      ( "$L",
+        do
+          ENV {path = PATH (_, n)} <- get
+          push $ NUM $ fromIntegral n
+      ),
+      ("$PI", push pi),
+      ("$E", push $ exp 1),
+      ("$W", push $ SEQ [0 ..]),
+      ("$N", push $ SEQ [1 ..]),
+      -- conversion
+      (">?", mod1 toTF),
+      (">>?", modv1 toTF),
+      (">N", mod1 toNUM),
+      (">>N", modv1 toNUM),
+      (">N%", mods1 $ pair . properFraction),
+      (">I", mod1 toINT),
+      (">>I", modv1 toINT),
+      (">R", mod1 toRAT),
+      (">>R", modv1 toRAT),
+      (">S", mod1 toSTR),
+      (">>S", modv1 toSTR),
+      ( ">F",
+        do
+          ENV {path} <- get
+          mod1 $ toFN path
+      ),
+      ( ">>F",
+        do
+          ENV {path} <- get
+          modv1 $ toFN path
+      ),
+      (">Q", mod1 toSEQ),
+      (">>Q", modv1 toSEQ),
+      (">A", mod1 toARR),
+      (">>A", modv1 toARR),
+      (">M", mod1 toMAP),
+      (">>M", modv1 toMAP),
+      (",", mod2 \a b -> SEQ [a, b]),
+      (",,", mod1 \a -> SEQ [a]),
+      (",`", modStack $ Seq.singleton . seqtoARR),
+      (",_", arg1 $ pushs . seqfromARR . toARR),
+      (",,_", arg1 $ modStack . const . seqfromARR . toARR),
+      ("\\", cmd ",," >> cmd ">F"),
+      ( "'",
+        modM2 \a -> vecM1 \f -> do
+          ENV {stack} <- evalSt f $ seqfromARR a
+          return $ seqtoARR stack
+      ),
+      ("'_", arg1 \a -> cmd' ",`" >> push a >> cmd' "Q" >> cmd' ",,_"),
+      -- flow
+      ( ".",
+        do
+          env@ENV {code, path} <- get
+          case code of
+            [] -> cmd ";"
+            c : cs -> do
+              put env {code = cs}
+              case c of
+                STR a -> push $ STR $ unescText a
+                a@(CMD _) -> mod1 \f -> FN path [f, a]
+                _ -> push c
+      ),
+      ("#", arg1 eval),
+      ("Q", modMv1 evalQ),
+      ("@@", arg1 $ evalLn . toInt),
+      ("@~", cmd "$L" >> cmd "+" >> cmd "@@"),
+      ("@", push 0 >> cmd "@~"),
+      (";", push 1 >> cmd "@~"),
+      (";;", push (-1) >> cmd "@~"),
+      -- I/O
+      ("i>", liftIO getLine >>= push . STR . T.pack),
+      (">o", arg1 $ liftIO . putStr . toStr),
+      ("n>o", arg1 $ liftIO . putStrLn . toStr),
+      ("f>o", arg1 $ liftIO . print),
+      -- stack
+      ("dup", mods1 \a -> [a, a]),
+      ("pop", mods1 $ const []),
+      ("swap", mods2 \a b -> [b, a]),
+      ("rot", mods3 \a b c -> [b, c, a]),
+      ("rot_", mods3 \a b c -> [c, a, b]),
+      ("dupd", mods2 \a b -> [a, a, b]),
+      ("over", mods2 \a b -> [a, b, a]),
+      ("ddup", mods2 \a b -> [a, b, a, b]),
+      ("edup", mods3 \a b c -> [a, b, c, a, b, c]),
+      ("nip", mod2 $ const id),
+      ("ppop", mods2 \_ _ -> []),
+      ("qpop", mods3 \_ _ _ -> []),
+      ("swapd", mods3 \a b c -> [b, a, c]),
+      ("tuck", mods2 \a b -> [b, a, b]),
+      ( "dups",
+        do
+          ENV {stack} <- get
+          push $ seqtoARR stack
+      ),
+      ("clr", modify \e -> e {stack = Seq.empty}),
+      ("rev", modify \e@ENV {stack} -> e {stack = Seq.reverse stack}),
+      ("pick", modM1 getSt),
+      -- TODO: index-based stack manipulation
+      ("dip", arg2 \a f -> evalE f >> push a),
+      -- math
+      ("<=>", modv2 $ \a b -> INT $ fromCmp $ compare a b),
+      ("<=>`", mod2 $ \a b -> INT $ fromCmp $ compare a b),
+      ("=", modv2 $ fTF2 (==)),
+      ("=`", mod2 $ fTF2 (==)),
+      ("<", modv2 $ fTF2 (<)),
+      ("<`", mod2 $ fTF2 (<)),
+      (">", modv2 $ fTF2 (>)),
+      (">`", mod2 $ fTF2 (>)),
+      ("<=", modv2 $ fTF2 (<=)),
+      ("<=`", mod2 $ fTF2 (<=)),
+      (">=", modv2 $ fTF2 (>=)),
+      (">=`", mod2 $ fTF2 (>=)),
+      ("|_", modv1 floor),
+      ("|~", modv1 round),
+      ("|^", modv1 ceiling),
+      ("_", modv1 negate),
+      ("__", modv1 $ fSTR1 T.reverse),
+      ("+", modv2 (+)),
+      ("++", modv2 $ fSTR2 (<>)),
+      ("+`", mod2 (<>)),
+      ("-", modv2 (-)),
+      ("--", modv2 $ fSTR2 (`T.replace` "")),
+      ("*", modv2 (*)),
+      ("**", modv2 $ \a n -> STR $ T.replicate (toInt n) $ toSTRW a),
+      ("/", modv2 (/)),
+      ("/~", modv2 div),
+      ("%", modv2 afmod),
+      ("%%", undefined),
+      ("^", modv2 apow),
+      ("abs", modv1 abs),
+      ("+-", modv1 signum),
+      ("E", push 10 >> cmd "swap" >> cmd "^"),
+      ("e^", modv1 exp),
+      ("logN", modv2 $ flip logBase),
+      ("log", push 10 >> cmd "logN"),
+      ("ln", modv1 log),
+      ("sin", modv1 sin),
+      ("cos", modv1 cos),
+      ("tan", modv1 tan),
+      ("sin_", modv1 asin),
+      ("cos_", modv1 acos),
+      ("tan_", modv1 atan),
+      ("sinh", modv1 sinh),
+      ("cosh", modv1 cosh),
+      ("tanh", modv1 tanh),
+      ("sinh_", modv1 asinh),
+      ("cosh_", modv1 acosh),
+      ("tanh_", modv1 atanh),
+      -- lazy
+      ("tk", undefined),
+      ("dp", undefined),
+      ("rep", modv1 $ SEQ . repeat),
+      ("cyc", mod1 $ fSEQ1 cycle)
+    ]
 
 -- convenience
 
@@ -227,9 +246,9 @@ dENV = do
         code = [],
         path = PATH ("", 0),
         stack = Seq.empty,
-        scope = M.empty,
+        scope = HM.empty,
         gscope,
-        ids = M.empty,
+        ids = HM.empty,
         gids,
         arr = []
       }
@@ -312,7 +331,7 @@ pushs :: Seq ANY -> ENVS ()
 pushs = modStack . flip (><)
 
 setvar :: String -> ANY -> ENVS ()
-setvar k v = modify \env -> env {scope = M.insert k v $ scope env}
+setvar k v = modify \env -> env {scope = HM.insert k v $ scope env}
 
 setgvar :: String -> ANY -> ENVS ()
 setgvar k v = do
@@ -322,7 +341,7 @@ setgvar k v = do
 getvar :: String -> ENVS (Maybe ANY)
 getvar k = do
   ENV {scope} <- get
-  case M.lookup k scope of
+  case HM.lookup k scope of
     Nothing -> getgvar k
     v@(Just _) -> return v
 

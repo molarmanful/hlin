@@ -2,6 +2,7 @@ module Types where
 
 import Control.Monad.Except (ExceptT)
 import Control.Monad.State (StateT)
+import Data.HashMap.Lazy (HashMap)
 import Data.Hashable (Hashable)
 import Data.Map (Map)
 import Data.Sequence (Seq)
@@ -16,9 +17,9 @@ data ENV = ENV
     code :: [ANY],
     path :: PATH,
     stack :: Seq ANY,
-    scope :: Map String ANY,
+    scope :: HashMap String ANY,
     gscope :: CM.Map String ANY,
-    ids :: Map String PATH,
+    ids :: HashMap String PATH,
     gids :: CM.Map String PATH,
     arr :: [Vector ANY]
   }
