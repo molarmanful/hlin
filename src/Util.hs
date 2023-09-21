@@ -86,7 +86,7 @@ toCmp a =
       | a > 0 -> GT
       | otherwise -> EQ
 
-iinv :: Int -> Seq a -> Maybe a
-iinv i s = s !? if i' < 0 then length s + i' else i'
+iinv :: Foldable t => Int -> t a -> Int
+iinv i s = if i' < 0 then length s + i' else i'
   where
     i' = -i - 1

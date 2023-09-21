@@ -172,10 +172,21 @@ cmds =
           ENV {stack} <- get
           push $ seqtoARR stack
       ),
-      ("clr", modify \e -> e {stack = Seq.empty}),
-      ("rev", modify \e@ENV {stack} -> e {stack = Seq.reverse stack}),
-      ("pick", modM1 getSt),
-      -- TODO: index-based stack manipulation
+      ("clr", modStack $ const Seq.empty),
+      ("rev", modStack Seq.reverse),
+      ( "pick",
+        modM1 \a -> do
+          ENV {stack} <- get
+          return $ getSt a stack
+      ),
+      ("nix", arg1 \a -> modStack $ \s -> Seq.deleteAt (iinv (toInt a) s) s),
+      ( "trade",
+        arg1 \a -> modStack $ \s ->
+          let x = getSt a s
+              y = getSt 0 s
+           in Seq.update (iinv (toInt a) s) y $ Seq.update (iinv 0 s) x s
+      ),
+      -- TODO: roll
       ("dip", arg2 \a f -> evalE f >> push a),
       -- math
       ("<=>", modv2 $ \a b -> INT $ fromCmp $ compare a b),
@@ -362,10 +373,8 @@ evalvar = fvar getvar eval
 evalgvar :: String -> String -> ENVS ()
 evalgvar = fvar getgvar eval
 
-getSt :: MonadState ENV m => ANY -> m ANY
-getSt i = do
-  ENV {stack} <- get
-  return $ fromMaybe UN $ iinv (toInt i) stack
+getSt :: ANY -> Seq ANY -> ANY
+getSt i s = fromMaybe UN $ Seq.lookup (iinv (toInt i) s) s
 
 fvar :: (t1 -> ENVS (Maybe t2)) -> (t2 -> ENVS ()) -> String -> t1 -> ENVS ()
 fvar g f c k =
