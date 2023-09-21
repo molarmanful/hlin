@@ -19,7 +19,6 @@ import Types
 import Util
 
 instance Show ENV where
-  show :: ENV -> String
   show ENV {stack, code} = show stack ++ " " ++ show code
 
 run :: String -> IO ENV
@@ -73,13 +72,14 @@ cmd' "$F" = push $ TF False
 cmd' "$L" = do
   ENV {path = PATH (_, n)} <- get
   push $ NUM $ fromIntegral n
-cmd' "$PI" = push $ NUM pi
-cmd' "$E" = push $ NUM $ exp 1
+cmd' "$PI" = push pi
+cmd' "$E" = push $ exp 1
 -- conversion
 cmd' ">?" = mod1 toTF
 cmd' ">>?" = modv1 toTF
 cmd' ">N" = mod1 toNUM
 cmd' ">>N" = modv1 toNUM
+cmd' ">N%" = mods1 $ pair . properFraction
 cmd' ">I" = mod1 toINT
 cmd' ">>I" = modv1 toINT
 cmd' ">R" = mod1 toRAT
@@ -123,9 +123,9 @@ cmd' "#" = arg1 eval
 cmd' "Q" = modMv1 evalQ
 cmd' "@@" = arg1 $ evalLn . toInt
 cmd' "@~" = cmd "$L" >> cmd "+" >> cmd "@@"
-cmd' "@" = push (NUM 0) >> cmd "@~"
-cmd' ";" = push (NUM 1) >> cmd "@~"
-cmd' ";;" = push (NUM (-1)) >> cmd "@~"
+cmd' "@" = push 0 >> cmd "@~"
+cmd' ";" = push 1 >> cmd "@~"
+cmd' ";;" = push (-1) >> cmd "@~"
 -- I/O
 cmd' "i>" = liftIO getLine >>= push . STR . T.pack
 cmd' ">o" = arg1 $ liftIO . putStr . toStr
@@ -154,10 +154,18 @@ cmd' "rev" = modify \e@ENV {stack} -> e {stack = Seq.reverse stack}
 -- TODO: index-based stack manipulation
 cmd' "dip" = arg2 \a f -> evalE f >> push a
 -- math
--- TODO: remove/rename
-cmd' "=" = modv2 $ \a b -> TF (a == b)
-cmd' "=`" = mod2 $ \a b -> TF (a == b)
-cmd' "frac" = modv1 $ (\(x, y) -> SEQ [x, y]) . properFraction
+cmd' "<=>" = modv2 $ \a b -> INT $ fromCmp $ compare a b
+cmd' "<=>`" = mod2 $ \a b -> INT $ fromCmp $ compare a b
+cmd' "=" = modv2 $ fTF2 (==)
+cmd' "=`" = mod2 $ fTF2 (==)
+cmd' "<" = modv2 $ fTF2 (<)
+cmd' "<`" = mod2 $ fTF2 (<)
+cmd' ">" = modv2 $ fTF2 (>)
+cmd' ">`" = mod2 $ fTF2 (>)
+cmd' "<=" = modv2 $ fTF2 (<=)
+cmd' "<=`" = mod2 $ fTF2 (<=)
+cmd' ">=" = modv2 $ fTF2 (>=)
+cmd' ">=`" = mod2 $ fTF2 (>=)
 cmd' "|_" = modv1 floor
 cmd' "|~" = modv1 round
 cmd' "|^" = modv1 ceiling
@@ -171,10 +179,30 @@ cmd' "--" = modv2 $ fSTR2 (`T.replace` "")
 cmd' "*" = modv2 (*)
 cmd' "**" = modv2 $ \a n -> STR $ T.replicate (toInt n) $ toSTRW a
 cmd' "/" = modv2 (/)
--- TODO: this
-cmd' "%" = undefined
--- lazy
+cmd' "/~" = modv2 div
+cmd' "%" = modv2 afmod
 cmd' "%%" = undefined
+cmd' "^" = modv2 apow
+cmd' "abs" = modv1 abs
+cmd' "+-" = modv1 signum
+cmd' "E" = push 10 >> cmd "swap" >> cmd "^"
+cmd' "e^" = modv1 exp
+cmd' "logN" = modv2 $ flip logBase
+cmd' "log" = push 10 >> cmd "logN"
+cmd' "ln" = modv1 log
+cmd' "sin" = modv1 sin
+cmd' "cos" = modv1 cos
+cmd' "tan" = modv1 tan
+cmd' "sin_" = modv1 asin
+cmd' "cos_" = modv1 acos
+cmd' "tan_" = modv1 atan
+cmd' "sinh" = modv1 sinh
+cmd' "cosh" = modv1 cosh
+cmd' "tanh" = modv1 tanh
+cmd' "sinh_" = modv1 asinh
+cmd' "cosh_" = modv1 acosh
+cmd' "tanh_" = modv1 atanh
+-- lazy
 cmd' x = throwError $ "\"" ++ x ++ "\" not found"
 
 -- convenience

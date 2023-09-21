@@ -5,6 +5,7 @@ import Data.Char (isDigit)
 import Data.List.Split (splitOn)
 import Data.Ratio ((%))
 import qualified Data.Text as T
+import GHC.Real (Ratio ((:%)))
 import Types (ANY (..))
 
 type Parser a = State ParserS a
@@ -82,10 +83,15 @@ clean = modify \ParserS {xs, x, t} -> dParser {xs = xs ++ f x t}
         | last x == '.' -> [INT $ read $ init x, CMD "."]
         | otherwise -> [NUM $ read $ '0' : x]
       T_NUM
-        | '.' `elem` x ->
-            let s = splitOn "." x
-                n :: Integer = read $ concat s
-                d = toInteger $ length $ last s
-             in [RAT $ n % (10 ^ d)]
+        | '.' `elem` x -> [mkRAT x]
         | otherwise -> [INT $ read x]
       _ -> []
+
+mkRAT :: String -> ANY
+mkRAT x = f (n % (10 ^ d))
+  where
+    s = splitOn "." x
+    n :: Integer = read $ concat s
+    d = toInteger $ length $ last s
+    f (a :% 1) = INT a
+    f a = RAT a

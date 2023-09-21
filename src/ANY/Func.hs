@@ -14,65 +14,60 @@ import Types
 import Util
 
 instance Num ANY where
-  fromInteger :: Integer -> ANY
   fromInteger = INT
-
-  signum :: ANY -> ANY
   signum = fNum1 signum
-
-  abs :: ANY -> ANY
   abs = fNum1 abs
-
-  (+) :: ANY -> ANY -> ANY
   (+) = fNum2 (+)
-
-  (-) :: ANY -> ANY -> ANY
   (-) = fNum2 (-)
-
-  (*) :: ANY -> ANY -> ANY
   (*) = fNum2 (*)
 
 instance Fractional ANY where
-  fromRational :: Rational -> ANY
   fromRational = RAT
-
-  (/) :: ANY -> ANY -> ANY
   NUM a / b = NUM $ a / toNUMW b
   a / b@(NUM _) = toNUM a / b
-  BigN a / b = RAT $ toRATW a / toRATW b
+  BigN a / b = toBigN $ toRATW a / toRATW b
   a / BigN b = toRAT a / b
   a / b = toFrac a / b
 
 instance Real ANY where
-  toRational :: ANY -> Rational
   toRational = toRATW
 
 instance Enum ANY where
-  toEnum :: Int -> ANY
   toEnum = INT . toInteger
-
-  fromEnum :: ANY -> Int
-  fromEnum = fromInteger . toINTW
+  fromEnum = toInt
 
 instance Integral ANY where
-  toInteger :: ANY -> Integer
   toInteger = toINTW
-
-  quotRem :: ANY -> ANY -> (ANY, ANY)
   quotRem a b = (acb2 INT toINTW quot a b, acb2 INT toINTW rem a b)
 
 instance RealFrac ANY where
-  properFraction :: Integral b => ANY -> (b, ANY)
   properFraction (INT a) = (fromInteger a, INT 0)
   properFraction (NUM a) = case properFraction a of (x, y) -> (x, NUM y)
   properFraction a = case properFraction $ toRATW a of (x, y) -> (x, RAT y)
 
+instance Floating ANY where
+  pi = NUM pi
+  exp = fNUM1 exp
+  log = fNUM1 log
+  sin = fNUM1 sin
+  cos = fNUM1 cos
+  asin = fNUM1 asin
+  acos = fNUM1 acos
+  atan = fNUM1 atan
+  sinh = fNUM1 sinh
+  cosh = fNUM1 cosh
+  asinh = fNUM1 asinh
+  acosh = fNUM1 acosh
+  atanh = fNUM1 atanh
+
+-- TODO: this
+instance RealFloat ANY
+
 instance Semigroup ANY where
-  (<>) :: ANY -> ANY -> ANY
-  SEQ a <> b = SEQ $ a <> toSEQW b
-  a <> b@(SEQ _) = toSEQ a <> b
   FN p a <> b = FN p $ a <> toSEQW b
   a <> b@(FN p _) = toFN p a <> b
+  SEQ a <> b = SEQ $ a <> toSEQW b
+  a <> b@(SEQ _) = toSEQ a <> b
   MAP a <> MAP b = MAP $ a <> b
   Itr a <> b = ARR $ toARRW a <> toARRW b
   a <> Itr b = toARR a <> b
@@ -188,6 +183,9 @@ fNum2 f (INT a) b = INT $ f a (toINTW b)
 fNum2 f a b@(INT _) = fNum2 f (toINT a) b
 fNum2 f a b = fNum2 f (toNum a) b
 
+fNUM1 :: (Double -> Double) -> ANY -> ANY
+fNUM1 = acb NUM toNUMW
+
 fSTR1 :: (Text -> Text) -> ANY -> ANY
 fSTR1 = acb STR toSTRW
 
@@ -215,5 +213,23 @@ fARR2 = acb2 ARR toARRW
 fARR3 :: (Vector ANY -> Vector ANY -> Vector ANY -> Vector ANY) -> ANY -> ANY -> ANY -> ANY
 fARR3 = acb3 ARR toARRW
 
+fTF1 :: (a -> Bool) -> a -> ANY
+fTF1 f = TF . f
+
+fTF2 :: (t1 -> t2 -> Bool) -> t1 -> t2 -> ANY
+fTF2 f a b = TF $ f a b
+
 apair :: (ANY, ANY) -> ANY
 apair = SEQ . pair
+
+apow :: ANY -> ANY -> ANY
+apow (INT a) (INT b) =
+  if b < 0
+    then RAT (toRational a ^^ b)
+    else INT (a ^ b)
+apow (NUM a) (INT b) = NUM a ^^ b
+apow a (INT b) = RAT (toRATW a ^^ b)
+apow a b = acb2 NUM toNUMW (**) a b
+
+afmod :: RealFrac a => a -> a -> a
+afmod a b = if m < 0 then m + b else m where m = a - b * fromInteger (truncate (a / b))

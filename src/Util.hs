@@ -1,6 +1,6 @@
 module Util where
 
-import Data.Char (readLitChar)
+import Data.Char (ord, readLitChar)
 import Data.Foldable (foldl', toList)
 import Data.Ratio (denominator)
 import Data.Sequence (Seq (..), (|>))
@@ -11,9 +11,21 @@ import qualified Data.Vector as V
 import Text.ParserCombinators.ReadP (eof, many, readP_to_S, readS_to_P)
 
 isMin :: (Eq t, Num t) => t -> [a] -> Bool
-isMin 0 _ = True
-isMin _ [] = False
-isMin n (_ : xs) = isMin (n - 1) xs
+isMin n = (> GT) . cmpNL n
+
+cmpLN :: (Eq a1, Num a1) => [a2] -> a1 -> Ordering
+cmpLN a = compare EQ . flip cmpNL a
+
+cmpNL :: (Eq t, Num t) => t -> [a] -> Ordering
+cmpNL 0 [] = EQ
+cmpNL 0 _ = LT
+cmpNL _ [] = GT
+cmpNL n (_ : xs) = cmpNL (n - 1) xs
+
+cmpSN a = compare EQ . flip cmpNS a
+
+cmpNS _ "" = GT
+cmpNS n s = compare n $ fromIntegral $ ord $ head s
 
 pair :: (a, a) -> [a]
 pair (a, b) = [a, b]
@@ -60,3 +72,16 @@ canDouble a = a == toRational (fromRational a :: Double)
 
 canInteger :: Rational -> Bool
 canInteger = (== 1) . denominator
+
+fromCmp :: Ordering -> Integer
+fromCmp = \case
+  LT -> -1
+  EQ -> 0
+  GT -> 1
+
+toCmp :: (Ord a, Num a) => a -> Ordering
+toCmp a =
+  if
+      | a < 0 -> LT
+      | a > 0 -> GT
+      | otherwise -> EQ

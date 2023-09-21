@@ -3,6 +3,7 @@
 
 module ANY.Base where
 
+import Data.Char (ord)
 import Data.Foldable (Foldable (toList))
 import qualified Data.List as L
 import Data.Map (Map)
@@ -19,7 +20,6 @@ import Types
 import Util
 
 instance Show ANY where
-  show :: ANY -> String
   show UN = "UN"
   show (TF a)
     | a = "$T"
@@ -41,7 +41,6 @@ instance Show ANY where
       ++ " }"
 
 instance Eq ANY where
-  (==) :: ANY -> ANY -> Bool
   UN == UN = True
   TF a == TF b = a == b
   NUM a == Num b = a == toNUMW b
@@ -64,15 +63,37 @@ instance Ord ANY where
   compare _ UN = GT
   compare (TF False) _ = LT
   compare _ (TF False) = GT
+  compare (TF True) _ = GT
+  compare _ (TF True) = LT
   compare (NUM a) (Num b) = compare a $ toNUMW b
   compare (Num a) (NUM b) = compare (toNUMW a) b
   compare (INT a) (Num b) = compare a $ toINTW b
   compare (Num a) (INT b) = compare (toINTW a) b
   compare (RAT a) (Num b) = compare a $ toRATW b
   compare (Num a) (RAT b) = compare (toRATW a) b
+  compare (NUM a) (Listy b) = cmpNL a b
+  compare (Listy a) (NUM b) = cmpLN a b
+  compare (INT a) (Listy b) = cmpNL a b
+  compare (Listy a) (INT b) = cmpLN a b
+  compare (RAT a) (Listy b) = cmpNL a b
+  compare (Listy a) (RAT b) = cmpLN a b
+  compare (NUM a) (Itr b) = compare a $ fromIntegral $ alength b
+  compare (Itr a) (NUM b) = compare (fromIntegral $ alength a) b
+  compare (INT a) (Itr b) = compare a $ fromIntegral $ alength b
+  compare (Itr a) (INT b) = compare (fromIntegral $ alength a) b
+  compare (RAT a) (Itr b) = compare a $ fromIntegral $ alength b
+  compare (Itr a) (RAT b) = compare (fromIntegral $ alength a) b
+  compare (NUM a) (Str b) = cmpNS a $ toStr b
+  compare (Str a) (NUM b) = cmpSN (toStr a) b
+  compare (INT a) (Str b) = cmpNS a $ toStr b
+  compare (Str a) (INT b) = cmpSN (toStr a) b
+  compare (RAT a) (Str b) = cmpNS a $ toStr b
+  compare (Str a) (RAT b) = cmpSN (toStr a) b
   compare (Str a) (Str b) = compare (toSTRW a) $ toSTRW b
-  compare (TF True) _ = GT
-  compare _ (TF True) = LT
+  compare (MAP a) (MAP b) = compare a b
+  compare (Listy a) (Itr b) = compare a $ toSEQW b
+  compare (Itr a) (Listy b) = compare (toSEQW a) b
+  compare a b = compare (toARRW a) $ toARRW b
 
 -- conversions
 
@@ -88,7 +109,7 @@ toSTR a = case a of
 
 toRAT :: ANY -> ANY
 toRAT a = case a of
-  RAT _ -> a
+  RAT n -> toBigN n
   _ -> RAT $ toRATW a
 
 toINT :: ANY -> ANY
@@ -135,6 +156,10 @@ ratNum n =
       | canInteger n -> INT $ truncate n
       | canDouble n -> NUM $ realToFrac n
       | otherwise -> RAT n
+
+toBigN :: Rational -> ANY
+toBigN (a :% 1) = INT a
+toBigN a = RAT a
 
 toTFW :: ANY -> Bool
 toTFW UN = False
@@ -229,6 +254,15 @@ txtRat a = case T.signed T.rational a of
   Left _ -> error "bad num"
   Right (x, _) -> x
 
+-- convenience
+alength :: ANY -> Int
+alength (STR a) = T.length a
+alength (CMD a) = length a
+alength (Listy a) = length a
+alength (ARR a) = length a
+alength (MAP a) = length a
+alength _ = -1
+
 -- patterns
 
 pattern Num :: ANY -> ANY
@@ -245,6 +279,9 @@ pattern Str a <- (getStr -> Just a)
 
 pattern Itr :: ANY -> ANY
 pattern Itr a <- (getItr -> Just a)
+
+pattern Listy :: [ANY] -> ANY
+pattern Listy a <- (getListy -> Just a)
 
 getNum :: ANY -> Maybe ANY
 getNum a@(Frac _) = Just a
@@ -270,3 +307,8 @@ getItr :: ANY -> Maybe ANY
 getItr a@(SEQ _) = Just a
 getItr a@(ARR _) = Just a
 getItr _ = Nothing
+
+getListy :: ANY -> Maybe [ANY]
+getListy (FN _ a) = Just a
+getListy (SEQ a) = Just a
+getListy _ = Nothing
