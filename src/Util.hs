@@ -3,7 +3,7 @@ module Util where
 import Data.Char (ord, readLitChar)
 import Data.Foldable (foldl', toList)
 import Data.Ratio (denominator)
-import Data.Sequence (Seq (..), (|>))
+import Data.Sequence (Seq (..), (!?), (|>))
 import qualified Data.Sequence as Seq
 import qualified Data.Text as T
 import Data.Vector (Vector)
@@ -85,3 +85,8 @@ toCmp a =
       | a < 0 -> LT
       | a > 0 -> GT
       | otherwise -> EQ
+
+iinv :: Int -> Seq a -> Maybe a
+iinv i s = s !? if i' < 0 then length s + i' else i'
+  where
+    i' = -i - 1

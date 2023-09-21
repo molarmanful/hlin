@@ -10,7 +10,8 @@ import Control.Monad.State
 import Data.Hashable (Hashable)
 import Data.List (stripPrefix)
 import qualified Data.Map as M
-import Data.Sequence (Seq (..), ViewL (..), ViewR (..), (<|), (><), (|>))
+import Data.Maybe (fromMaybe)
+import Data.Sequence (Seq (..), (><), (|>))
 import qualified Data.Sequence as Seq
 import qualified Data.Text as T
 import GHC.Conc (atomically)
@@ -74,6 +75,8 @@ cmd' "$L" = do
   push $ NUM $ fromIntegral n
 cmd' "$PI" = push pi
 cmd' "$E" = push $ exp 1
+cmd' "$W" = push $ SEQ [0 ..]
+cmd' "$N" = push $ SEQ [1 ..]
 -- conversion
 cmd' ">?" = mod1 toTF
 cmd' ">>?" = modv1 toTF
@@ -151,6 +154,7 @@ cmd' "dups" = do
   push $ seqtoARR stack
 cmd' "clr" = modify \e -> e {stack = Seq.empty}
 cmd' "rev" = modify \e@ENV {stack} -> e {stack = Seq.reverse stack}
+cmd' "pick" = modM1 getSt
 -- TODO: index-based stack manipulation
 cmd' "dip" = arg2 \a f -> evalE f >> push a
 -- math
@@ -203,6 +207,11 @@ cmd' "sinh_" = modv1 asinh
 cmd' "cosh_" = modv1 acosh
 cmd' "tanh_" = modv1 atanh
 -- lazy
+cmd' "tk" = undefined
+cmd' "dp" = undefined
+cmd' "rep" = modv1 $ SEQ . repeat
+cmd' "cyc" = mod1 $ fSEQ1 cycle
+-- TODO: range
 cmd' x = throwError $ "\"" ++ x ++ "\" not found"
 
 -- convenience
@@ -333,6 +342,11 @@ evalvar = fvar getvar eval
 
 evalgvar :: String -> String -> ENVS ()
 evalgvar = fvar getgvar eval
+
+getSt :: MonadState ENV m => ANY -> m ANY
+getSt i = do
+  ENV {stack} <- get
+  return $ fromMaybe UN $ iinv (toInt i) stack
 
 fvar :: (t1 -> ENVS (Maybe t2)) -> (t2 -> ENVS ()) -> String -> t1 -> ENVS ()
 fvar g f c k =
