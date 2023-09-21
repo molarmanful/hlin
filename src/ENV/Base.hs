@@ -216,6 +216,7 @@ cmds =
       ("/", modv2 (/)),
       ("/~", modv2 div),
       ("%", modv2 afmod),
+      ("%~", modv2 afrem),
       ("%%", undefined),
       ("^", modv2 apow),
       ("abs", modv1 abs),

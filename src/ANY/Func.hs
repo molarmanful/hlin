@@ -232,4 +232,7 @@ apow a (INT b) = RAT (toRATW a ^^ b)
 apow a b = acb2 NUM toNUMW (**) a b
 
 afmod :: RealFrac a => a -> a -> a
-afmod a b = if m < 0 then m + b else m where m = a - b * fromInteger (truncate (a / b))
+afmod a b = if m < 0 then m + b else m where m = afrem a b
+
+afrem :: RealFrac a => a -> a -> a
+afrem a b = a - b * fromInteger (truncate (a / b))
