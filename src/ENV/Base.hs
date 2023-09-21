@@ -181,10 +181,9 @@ cmds =
       ),
       ("nix", arg1 \a -> modStack $ \s -> Seq.deleteAt (iinv (toInt a) s) s),
       ( "trade",
-        arg1 \a -> modStack $ \s ->
-          let x = getSt a s
-              y = getSt 0 s
-           in Seq.update (iinv (toInt a) s) y $ Seq.update (iinv 0 s) x s
+        arg1 \a -> do
+          push a >> cmd "roll_"
+          push (a - 1) >> cmd "roll"
       ),
       ( "roll",
         arg1 \a -> do
