@@ -65,6 +65,8 @@ cmd (stripPrefix "=$" -> Just k@(_ : _)) = arg1 (setvar k)
 cmd c@(stripPrefix "$$" -> Just k@(_ : _)) = pushgvar c k
 cmd c@('$' : k@(_ : _)) = pushvar c k
 cmd ('#' : _ : _) = return ()
+cmd "[" = modify \env@ENV {stack, arr} ->
+  env {arr = stack : arr, stack = Seq.empty}
 cmd c = evalvar c c
 
 cmd' :: String -> ENVS ()
@@ -79,6 +81,9 @@ cmds =
       ("UN", push UN),
       ("$T", push $ TF True),
       ("$F", push $ TF False),
+      ("[]`", push $ toSEQ UN),
+      ("[]", push $ toARR UN),
+      ("{}", push $ toMAP UN),
       ( "$L",
         do
           ENV {path = PATH (_, n)} <- get
@@ -141,6 +146,17 @@ cmds =
                 STR a -> push $ STR $ unescText a
                 a@(CMD _) -> mod1 \f -> FN path [f, a]
                 _ -> push c
+      ),
+      ( "[",
+        do
+          modify \env@ENV {stack, arr} -> env {arr = stack : arr}
+          cmd "clr"
+      ),
+      ( "]",
+        modify \e@ENV {stack, arr} -> case arr of
+          [] -> e
+          x : xs -> do
+            e {arr = xs, stack = x |> seqtoARR stack}
       ),
       ("#", arg1 eval),
       ("*#", arg2 \f n -> timesM (toInt n) $ eval f),

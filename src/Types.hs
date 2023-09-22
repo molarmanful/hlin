@@ -21,7 +21,7 @@ data ENV = ENV
     gscope :: CM.Map String ANY,
     ids :: HashMap String PATH,
     gids :: CM.Map String PATH,
-    arr :: [Vector ANY]
+    arr :: [Seq ANY]
   }
 
 -- TODO: add MAP
