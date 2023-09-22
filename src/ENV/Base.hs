@@ -233,7 +233,7 @@ cmds =
       ("-", modv2 (-)),
       ("--", modv2 $ fSTR2 (`T.replace` "")),
       ("*", modv2 (*)),
-      ("**", modv2 $ flip atimes),
+      ("**", modv2 $ \a b -> STR $ T.replicate (toInt b) $ toSTRW a),
       ("*`", mod2 $ flip atimes),
       ("/", modv2 (/)),
       ("/~", modv2 div),
