@@ -12,6 +12,7 @@ import qualified Data.HashMap.Lazy as HM
 import Data.Hashable (Hashable)
 import Data.List (stripPrefix)
 import Data.Maybe (fromMaybe)
+import Data.Semigroup (stimes)
 import Data.Sequence (Seq (..), (><), (|>))
 import qualified Data.Sequence as Seq
 import qualified Data.Text as T
@@ -227,12 +228,13 @@ cmds =
       ("_", modv1 negate),
       ("__", modv1 $ fSTR1 T.reverse),
       ("+", modv2 (+)),
-      ("++", modv2 $ fSTR2 (<>)),
+      ("++", modv2 (<>)),
       ("+`", mod2 (<>)),
       ("-", modv2 (-)),
       ("--", modv2 $ fSTR2 (`T.replace` "")),
       ("*", modv2 (*)),
-      ("**", modv2 $ \a n -> STR $ T.replicate (toInt n) $ toSTRW a),
+      ("**", modv2 $ flip atimes),
+      ("*`", mod2 $ flip atimes),
       ("/", modv2 (/)),
       ("/~", modv2 div),
       ("%", modv2 afmod),

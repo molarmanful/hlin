@@ -10,6 +10,7 @@ import Data.Text (Text)
 import Data.These (fromThese)
 import Data.Vector (Vector)
 import qualified Data.Vector as V
+import GHC.Base (stimes)
 import Types
 import Util
 
@@ -242,3 +243,6 @@ afmod a b = if m < 0 then m + b else m where m = afrem a b
 
 afrem :: RealFrac a => a -> a -> a
 afrem a b = a - b * fromInteger (truncate (a / b))
+
+atimes :: Integral b => b -> ANY -> ANY
+atimes n = if n <= 0 then flip matchT UN else stimes n

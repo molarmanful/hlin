@@ -57,6 +57,7 @@ instance Eq ANY where
   MAP a == MAP b = a == b
   _ == _ = False
 
+-- what the fuck
 instance Ord ANY where
   compare a b | a == b = EQ
   compare UN _ = LT
@@ -97,6 +98,19 @@ instance Ord ANY where
 
 -- conversions
 
+matchT :: ANY -> ANY -> ANY
+matchT UN = const UN
+matchT (TF _) = toTF
+matchT (RAT _) = toRAT
+matchT (INT _) = toINT
+matchT (NUM _) = toNUM
+matchT (STR _) = toSTR
+matchT (CMD _) = toCMD
+matchT (FN p _) = toFN p
+matchT (SEQ _) = toSEQ
+matchT (ARR _) = toARR
+matchT (MAP _) = toMAP
+
 toTF :: ANY -> ANY
 toTF a = case a of
   TF _ -> a
@@ -121,6 +135,11 @@ toNUM :: ANY -> ANY
 toNUM a = case a of
   NUM _ -> a
   _ -> NUM $ toNUMW a
+
+toCMD :: ANY -> ANY
+toCMD a = case a of
+  CMD _ -> a
+  _ -> CMD $ toStr a
 
 toFN :: PATH -> ANY -> ANY
 toFN p a = case a of
