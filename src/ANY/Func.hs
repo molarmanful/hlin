@@ -213,11 +213,17 @@ fARR2 = acb2 ARR toARRW
 fARR3 :: (Vector ANY -> Vector ANY -> Vector ANY -> Vector ANY) -> ANY -> ANY -> ANY -> ANY
 fARR3 = acb3 ARR toARRW
 
-fTF1 :: (a -> Bool) -> a -> ANY
-fTF1 f = TF . f
+fTF1 :: (Bool -> Bool) -> ANY -> ANY
+fTF1 = acb TF toTFW
 
-fTF2 :: (t1 -> t2 -> Bool) -> t1 -> t2 -> ANY
-fTF2 f a b = TF $ f a b
+fTF2 :: (Bool -> Bool -> Bool) -> ANY -> ANY -> ANY
+fTF2 = acb2 TF toTFW
+
+fTF1' :: (a -> Bool) -> a -> ANY
+fTF1' = (TF .)
+
+fTF2' :: (t1 -> t2 -> Bool) -> t1 -> t2 -> ANY
+fTF2' f a b = TF $ f a b
 
 apair :: (ANY, ANY) -> ANY
 apair = SEQ . pair

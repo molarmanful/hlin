@@ -128,6 +128,7 @@ cmds =
       ),
       ("'_", arg1 \a -> cmd' ",`" >> push a >> cmd' "Q" >> cmd' ",,_"),
       -- flow
+      ("end", modify \env -> env {code = []}),
       ( ".",
         do
           env@ENV {code, path} <- get
@@ -141,6 +142,9 @@ cmds =
                 _ -> push c
       ),
       ("#", arg1 eval),
+      ("*#", arg2 \f n -> timesM (toInt n) $ eval f),
+      ("&#", cmd "swap" >> cmd ">?" >> cmd "*#"),
+      ("|#", cmd "swap" >> cmd "!`" >> cmd "*#"),
       ("Q", modMv1 evalQ),
       ("@@", arg1 $ evalLn . toInt),
       ("@~", cmd "$L" >> cmd "+" >> cmd "@@"),
@@ -175,42 +179,48 @@ cmds =
       ("clr", modStack $ const Seq.empty),
       ("rev", modStack Seq.reverse),
       ( "pick",
-        modM1 \a -> do
+        modM1 \a -> checkStL a do
           ENV {stack} <- get
           return $ getSt a stack
       ),
-      ("nix", arg1 \a -> modStack $ \s -> Seq.deleteAt (iinv (toInt a) s) s),
+      ( "nix",
+        arg1 \a -> checkStL a $ modStack \s ->
+          Seq.deleteAt (iinv (toInt a) s) s
+      ),
       ( "trade",
-        arg1 \a -> do
+        arg1 \a -> checkStL a do
           push a >> cmd "roll_"
           push (a - 1) >> cmd "roll"
       ),
       ( "roll",
-        arg1 \a -> do
+        arg1 \a -> checkStL a do
           ENV {stack} <- get
           push a >> cmd "nix"
           push $ getSt a stack
       ),
       ( "roll_",
-        arg1 \a -> do
+        arg1 \a -> checkStL a do
           ENV {stack} <- get
           push a >> cmd "trade"
           push $ getSt 0 stack
       ),
       ("dip", arg2 \a f -> evalE f >> push a),
+      -- logic
+      ("!", cmd ">>?" >> modv1 (fTF1 not)),
+      ("!`", cmd ">?" >> cmd "!"),
+      ("<=>", modv2 \a b -> INT $ fromCmp $ compare a b),
+      ("<=>`", mod2 \a b -> INT $ fromCmp $ compare a b),
+      ("=", modv2 $ fTF2' (==)),
+      ("=`", mod2 $ fTF2' (==)),
+      ("<", modv2 $ fTF2' (<)),
+      ("<`", mod2 $ fTF2' (<)),
+      (">", modv2 $ fTF2' (>)),
+      (">`", mod2 $ fTF2' (>)),
+      ("<=", modv2 $ fTF2' (<=)),
+      ("<=`", mod2 $ fTF2' (<=)),
+      (">=", modv2 $ fTF2' (>=)),
+      (">=`", mod2 $ fTF2' (>=)),
       -- math
-      ("<=>", modv2 $ \a b -> INT $ fromCmp $ compare a b),
-      ("<=>`", mod2 $ \a b -> INT $ fromCmp $ compare a b),
-      ("=", modv2 $ fTF2 (==)),
-      ("=`", mod2 $ fTF2 (==)),
-      ("<", modv2 $ fTF2 (<)),
-      ("<`", mod2 $ fTF2 (<)),
-      (">", modv2 $ fTF2 (>)),
-      (">`", mod2 $ fTF2 (>)),
-      ("<=", modv2 $ fTF2 (<=)),
-      ("<=`", mod2 $ fTF2 (<=)),
-      (">=", modv2 $ fTF2 (>=)),
-      (">=`", mod2 $ fTF2 (>=)),
       ("|_", modv1 floor),
       ("|~", modv1 round),
       ("|^", modv1 ceiling),
@@ -396,14 +406,11 @@ fvar g f c k =
 argN :: Int -> (Seq ANY -> ENVS ()) -> ENVS ()
 argN n f = do
   env@ENV {stack} <- get
-  let l = Seq.length stack
-   in if l < n
-        then throwError $ "stack len < " ++ show n
-        else
-          let (a, b) = Seq.splitAt (l - n) stack
-           in do
-                put env {stack = a}
-                f b
+  checkStL' n \l m ->
+    let (a, b) = Seq.splitAt (l - m) stack
+     in do
+          put env {stack = a}
+          f b
 
 modN :: Int -> (Seq ANY -> ANY) -> ENVS ()
 modN n f = argN n $ push . f
@@ -474,3 +481,14 @@ setCM v k = liftIO . atomically . CM.insert v k
 
 getCM :: (MonadIO m, Hashable key) => key -> CM.Map key value -> m (Maybe value)
 getCM k = liftIO . atomically . CM.lookup k
+
+checkStL :: (MonadState ENV m, MonadError [Char] m) => ANY -> m b -> m b
+checkStL n f = checkStL' (toInt n) \_ _ -> f
+
+checkStL' :: (MonadState ENV m, MonadError [Char] m) => Int -> (Int -> Int -> m b) -> m b
+checkStL' n f = do
+  ENV {stack} <- get
+  let l = length stack
+   in if l < n
+        then throwError $ "stack len " ++ show l ++ " < " ++ show n
+        else f l n

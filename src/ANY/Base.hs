@@ -164,9 +164,9 @@ toBigN a = RAT a
 toTFW :: ANY -> Bool
 toTFW UN = False
 toTFW (TF a) = a
-toTFW (RAT a) = a == 0
-toTFW (INT a) = a == 0
-toTFW (NUM a) = a == 0
+toTFW (RAT a) = a /= 0
+toTFW (INT a) = a /= 0
+toTFW (NUM a) = a /= 0
 toTFW (STR a) = not $ T.null a
 toTFW (CMD a) = not $ null a
 toTFW (FN _ a) = not $ null a

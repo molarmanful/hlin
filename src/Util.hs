@@ -88,4 +88,11 @@ toCmp a =
 
 iinv :: Foldable t => Int -> t a -> Int
 iinv i s = if n < 0 then n + length s else n
-  where n = -i - 1
+  where
+    n = -i - 1
+
+timesM :: (Ord t, Num t, Monad m) => t -> m a -> m ()
+timesM n f =
+  if n <= 0
+    then return ()
+    else f >> timesM (n - 1) f
