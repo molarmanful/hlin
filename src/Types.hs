@@ -54,6 +54,18 @@ data PFlag = T_UN | T_NUM | T_STR | T_CMD | T_ESC | T_DEC deriving (Eq)
 dParser :: ParserS
 dParser = ParserS {xs = [], x = "", t = T_UN}
 
-newtype PATH = PATH (FilePath, Int) deriving (Generic, Show, Eq, Ord, Hashable)
+type LoopFN a = State LoopFNS a
+
+data LoopFNS = LoopFN
+  { xs :: [ANY],
+    ys :: [ANY],
+    n :: Int
+  }
+  deriving (Generic)
+
+dLoopFN :: LoopFNS
+dLoopFN = LoopFN {xs = [], ys = [], n = 1}
+
+newtype PATH = PATH (FilePath, Int) deriving (Show, Eq, Ord, Hashable)
 
 newtype LINE = LINE (String, Maybe ANY)

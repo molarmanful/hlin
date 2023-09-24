@@ -67,21 +67,20 @@ clean :: Parser ()
 clean = do
   t <- use #t
   x <- use #x
-  let x' = case t of
-        T_STR -> [STR $ T.pack x]
-        T_ESC -> [STR $ T.pack $ x ++ "\\"]
-        T_CMD
-          | all (`elem` ("()[]{}" :: String)) x -> [CMD [a] | a <- x]
-          | otherwise -> [CMD x]
-        T_DEC
-          | x == "." -> [CMD x]
-          | last x == '.' -> [INT $ read $ init x, CMD "."]
-          | otherwise -> [NUM $ read $ '0' : x]
-        T_NUM
-          | '.' `elem` x -> [mkRAT x]
-          | otherwise -> [INT $ read x]
-        _ -> []
-  #xs %= (++ x')
+  #xs %= flip (++) case t of
+    T_STR -> [STR $ T.pack x]
+    T_ESC -> [STR $ T.pack $ x ++ "\\"]
+    T_CMD
+      | all (`elem` ("()[]{}" :: String)) x -> [CMD [a] | a <- x]
+      | otherwise -> [CMD x]
+    T_DEC
+      | x == "." -> [CMD x]
+      | last x == '.' -> [INT $ read $ init x, CMD "."]
+      | otherwise -> [NUM $ read $ '0' : x]
+    T_NUM
+      | '.' `elem` x -> [mkRAT x]
+      | otherwise -> [INT $ read x]
+    _ -> []
   #x .= ""
   #t .= T_UN
 

@@ -17,6 +17,7 @@ import Data.Sequence (Seq (..), (><))
 import qualified Data.Sequence as Seq
 import qualified Data.Text as T
 import GHC.Conc (atomically)
+import Lambda
 import Optics
 import Optics.State.Operators ((%=), (.=))
 import qualified StmContainers.Map as CM
@@ -29,11 +30,10 @@ instance Show ENV where
 run :: String -> IO ENV
 run s =
   dENV >>= unENVS do
+    let ls = lines s
     loadLines ls
     #code .= parse ls
     loop
-  where
-    ls = lines s
 
 loadLines :: [String] -> ENVS ()
 loadLines = flip
@@ -141,6 +141,14 @@ cmds =
                 STR a -> push $ STR $ unescText a
                 a@(CMD _) -> mod1 \f -> FN path [f, a]
                 _ -> push c
+      ),
+      ( "(",
+        do
+          code <- use #code
+          path <- use #path
+          let LoopFN {xs, ys} = loopFN code
+          #code .= xs
+          push $ FN path ys
       ),
       ( "[",
         do
@@ -345,29 +353,29 @@ eval' :: MonadIO m => ENV -> m ENV
 eval' = liftIO . unENVS loop
 
 evalLn :: Int -> ENVS ()
-evalLn n = do
-  l <- fnLn n
-  case l of
+evalLn =
+  fnLn >=> \case
     Nothing -> return ()
     Just (LINE (_, a)) -> mapM_ eval a
 
 fnLn :: Int -> ENVS (Maybe LINE)
 fnLn n = do
-  ENV {lns, path = PATH (fp, _)} <- get
+  lns <- use #lns
+  PATH (fp, _) <- use #path
   l <- getLn n
   case l of
     Nothing -> return Nothing
     Just (LINE (a, Nothing)) -> do
+      let p = PATH (fp, n)
+          l' = LINE (a, Just $ FN p $ parse [a])
       setCM l' p lns
       return $ Just l'
-      where
-        p = PATH (fp, n)
-        l' = LINE (a, Just $ FN p $ parse [a])
     Just (LINE _) -> return l
 
 getLn :: Int -> ENVS (Maybe LINE)
 getLn n = do
-  ENV {lns, path = PATH (fp, _)} <- get
+  lns <- use #lns
+  PATH (fp, _) <- use #path
   getCM (PATH (fp, n)) lns
 
 push :: ANY -> ENVS ()
@@ -384,7 +392,7 @@ setgvar k v = use #gscope >>= setCM v k
 
 getvar :: String -> ENVS (Maybe ANY)
 getvar k = do
-  ENV {scope} <- get
+  scope <- use #scope
   case HM.lookup k scope of
     Nothing -> getgvar k
     v@(Just _) -> return v
