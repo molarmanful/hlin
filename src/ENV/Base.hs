@@ -147,9 +147,12 @@ cmds =
           code <- use #code
           path <- use #path
           let LoopFN {xs, ys} = loopFN code
+              (cs, c) = maybe (ys, ")") (_2 %~ toStr) $ unsnoc ys
           #code .= xs
-          push $ FN path ys
+          push $ FN path cs
+          cmd c
       ),
+      (")", return ()),
       ( "[",
         do
           stack <- use #stack
