@@ -29,6 +29,7 @@ library
       ANY.Func
       ENV
       ENV.Base
+      Lambda
       Parser
       Types
       Util

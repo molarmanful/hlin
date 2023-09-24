@@ -71,7 +71,7 @@ cmd "[" = do
 cmd c = evalvar c c
 
 cmd' :: String -> ENVS ()
-cmd' x = case HM.lookup x cmds of
+cmd' x = case cmds ^. at x of
   Nothing -> throwError $ "\"" ++ x ++ "\" not found"
   Just a -> a
 
@@ -364,13 +364,12 @@ fnLn n = do
   PATH (fp, _) <- use #path
   l <- getLn n
   case l of
-    Nothing -> return Nothing
     Just (LINE (a, Nothing)) -> do
       let p = PATH (fp, n)
           l' = LINE (a, Just $ FN p $ parse [a])
       setCM l' p lns
       return $ Just l'
-    Just (LINE _) -> return l
+    _ -> return l
 
 getLn :: Int -> ENVS (Maybe LINE)
 getLn n = do
@@ -393,9 +392,9 @@ setgvar k v = use #gscope >>= setCM v k
 getvar :: String -> ENVS (Maybe ANY)
 getvar k = do
   scope <- use #scope
-  case HM.lookup k scope of
+  case scope ^. at k of
     Nothing -> getgvar k
-    v@(Just _) -> return v
+    v -> return v
 
 getgvar :: String -> ENVS (Maybe ANY)
 getgvar k = use #gscope >>= getCM k
