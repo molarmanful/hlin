@@ -3,7 +3,6 @@
 
 module ANY.Base where
 
-import Data.Char (ord)
 import Data.Foldable (Foldable (toList))
 import qualified Data.List as L
 import Data.Map (Map)
@@ -29,9 +28,16 @@ instance Show ANY where
   show (NUM a) = show a
   show (RAT (n :% d)) = show n ++ "%" ++ show d
   show (INT a) = show a
-  show (FN _ a) = "( " ++ unwords (show <$> a) ++ " )"
-  show (SEQ a) = "[ " ++ unwords (show <$> a) ++ " ]`"
-  show (ARR a) = "[ " ++ unwords (toList $ show <$> a) ++ " ]"
+  show (FN _ a) = case a of
+    [] -> "()"
+    _ -> "( " ++ unwords (show <$> a) ++ " )"
+  show (SEQ a) = case a of
+    [] -> "[]`"
+    _ -> "[ " ++ unwords (show <$> a) ++ " ]`"
+  show (ARR a) =
+    if null a
+      then "[]"
+      else "[ " ++ unwords (toList $ show <$> a) ++ " ]"
   show (MAP a) =
     "{ "
       ++ unwords
@@ -235,6 +241,7 @@ toInt :: ANY -> Int
 toInt = truncate . toNUMW
 
 toFNW :: ANY -> [ANY]
+toFNW UN = []
 toFNW (STR a) = parse [T.unpack a]
 toFNW (FN _ a) = a
 toFNW (SEQ a) = a

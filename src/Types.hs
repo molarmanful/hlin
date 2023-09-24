@@ -1,13 +1,14 @@
 module Types where
 
 import Control.Monad.Except (ExceptT)
-import Control.Monad.State (StateT)
+import Control.Monad.State (State, StateT)
 import Data.HashMap.Lazy (HashMap)
 import Data.Hashable (Hashable)
 import Data.Map (Map)
 import Data.Sequence (Seq)
 import qualified Data.Text as T
 import Data.Vector (Vector)
+import GHC.Generics (Generic)
 import qualified StmContainers.Map as CM
 
 type ENVS a = ExceptT String (StateT ENV IO) a
@@ -23,6 +24,7 @@ data ENV = ENV
     gids :: CM.Map String PATH,
     arr :: [Seq ANY]
   }
+  deriving (Generic)
 
 -- TODO: add MAP
 data ANY
@@ -38,6 +40,20 @@ data ANY
   | ARR (Vector ANY)
   | MAP (Map ANY ANY)
 
-newtype PATH = PATH (FilePath, Int) deriving (Show, Eq, Ord, Hashable)
+type Parser a = State ParserS a
+
+data ParserS = ParserS
+  { xs :: [ANY],
+    x :: String,
+    t :: PFlag
+  }
+  deriving (Generic)
+
+data PFlag = T_UN | T_NUM | T_STR | T_CMD | T_ESC | T_DEC deriving (Eq)
+
+dParser :: ParserS
+dParser = ParserS {xs = [], x = "", t = T_UN}
+
+newtype PATH = PATH (FilePath, Int) deriving (Generic, Show, Eq, Ord, Hashable)
 
 newtype LINE = LINE (String, Maybe ANY)

@@ -25,6 +25,7 @@ dependencies:
   - mtl
   - hashable
   - monadlist
+  - optics
 
 ghc-options:
   - -Wall
@@ -51,6 +52,7 @@ library:
     - DeriveLift
     - DeriveTraversable
     - DerivingStrategies
+    - DuplicateRecordFields
     - EmptyCase
     - ExistentialQuantification
     - FlexibleContexts
@@ -64,6 +66,8 @@ library:
     - MultiParamTypeClasses
     - MultiWayIf
     - NamedFieldPuns
+    - NoFieldSelectors
+    - OverloadedLabels
     - OverloadedStrings
     - PatternSynonyms
     - RankNTypes

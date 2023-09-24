@@ -6,49 +6,47 @@ module ENV.Base where
 import ANY
 import Control.Monad
 import Control.Monad.Except
-import Control.Monad.State
+import Control.Monad.State (MonadState, StateT, execStateT, get, put)
+import Data.Foldable (toList)
 import Data.HashMap.Lazy (HashMap)
 import qualified Data.HashMap.Lazy as HM
 import Data.Hashable (Hashable)
 import Data.List (stripPrefix)
 import Data.Maybe (fromMaybe)
-import Data.Semigroup (stimes)
-import Data.Sequence (Seq (..), (><), (|>))
+import Data.Sequence (Seq (..), (><))
 import qualified Data.Sequence as Seq
 import qualified Data.Text as T
 import GHC.Conc (atomically)
+import Optics
+import Optics.State.Operators ((%=), (.=))
 import qualified StmContainers.Map as CM
 import Types
 import Util
 
 instance Show ENV where
-  show ENV {stack, code} = show stack ++ " " ++ show code
+  show = unlines . map show . toList . view #stack
 
 run :: String -> IO ENV
 run s =
   dENV >>= unENVS do
     loadLines ls
-    modify \env -> env {code = parse ls}
+    #code .= parse ls
     loop
   where
     ls = lines s
 
 loadLines :: [String] -> ENVS ()
-loadLines =
+loadLines = flip
   zipWithM_
-    ( \i v -> do
-        ENV {lns} <- get
-        setCM (LINE (v, Nothing)) (PATH ("", i)) lns
-    )
-    [0 ..]
+  [0 ..]
+  \i v -> use #lns >>= setCM (LINE (v, Nothing)) (PATH ("", i))
 
 loop :: ENVS ()
-loop = do
-  env@ENV {code} <- get
-  case code of
+loop =
+  use #code >>= \case
     [] -> return ()
     x : xs -> do
-      put env {code = xs}
+      #code .= xs
       choice x
       loop
 
@@ -58,15 +56,18 @@ choice a = push a
 
 cmd :: String -> ENVS ()
 cmd ('\\' : k@(_ : _)) = do
-  ENV {path} <- get
+  path <- use #path
   push $ toFN path $ CMD k
 cmd (stripPrefix "=$$" -> Just k@(_ : _)) = arg1 (setgvar k)
 cmd (stripPrefix "=$" -> Just k@(_ : _)) = arg1 (setvar k)
 cmd c@(stripPrefix "$$" -> Just k@(_ : _)) = pushgvar c k
 cmd c@('$' : k@(_ : _)) = pushvar c k
 cmd ('#' : _ : _) = return ()
-cmd "[" = modify \env@ENV {stack, arr} ->
-  env {arr = stack : arr, stack = Seq.empty}
+cmd "[" = do
+  stack <- use #stack
+  arr <- use #arr
+  #stack .= Seq.empty
+  #arr .= stack : arr
 cmd c = evalvar c c
 
 cmd' :: String -> ENVS ()
@@ -81,12 +82,13 @@ cmds =
       ("UN", push UN),
       ("$T", push $ TF True),
       ("$F", push $ TF False),
+      ("()", push UN >> cmd ">F"),
       ("[]`", push $ toSEQ UN),
       ("[]", push $ toARR UN),
       ("{}", push $ toMAP UN),
       ( "$L",
         do
-          ENV {path = PATH (_, n)} <- get
+          PATH (_, n) <- use #path
           push $ NUM $ fromIntegral n
       ),
       ("$PI", push pi),
@@ -105,16 +107,8 @@ cmds =
       (">>R", modv1 toRAT),
       (">S", mod1 toSTR),
       (">>S", modv1 toSTR),
-      ( ">F",
-        do
-          ENV {path} <- get
-          mod1 $ toFN path
-      ),
-      ( ">>F",
-        do
-          ENV {path} <- get
-          modv1 $ toFN path
-      ),
+      (">F", use #path >>= mod1 . toFN),
+      (">>F", use #path >>= modv1 . toFN),
       (">Q", mod1 toSEQ),
       (">>Q", modv1 toSEQ),
       (">A", mod1 toARR),
@@ -123,9 +117,9 @@ cmds =
       (">>M", modv1 toMAP),
       (",", mod2 \a b -> SEQ [a, b]),
       (",,", mod1 \a -> SEQ [a]),
-      (",`", modStack $ Seq.singleton . seqtoARR),
+      (",`", #stack %= Seq.singleton . seqtoARR),
       (",_", arg1 $ pushs . seqfromARR . toARR),
-      (",,_", arg1 $ modStack . const . seqfromARR . toARR),
+      (",,_", arg1 $ (#stack .=) . seqfromARR . toARR),
       ("\\", cmd ",," >> cmd ">F"),
       ( "'",
         modM2 \a -> vecM1 \f -> do
@@ -134,14 +128,15 @@ cmds =
       ),
       ("'_", arg1 \a -> cmd' ",`" >> push a >> cmd' "Q" >> cmd' ",,_"),
       -- flow
-      ("end", modify \env -> env {code = []}),
+      ("end", #code .= []),
       ( ".",
         do
-          env@ENV {code, path} <- get
+          code <- use #code
+          path <- use #path
           case code of
             [] -> cmd ";"
             c : cs -> do
-              put env {code = cs}
+              #code .= cs
               case c of
                 STR a -> push $ STR $ unescText a
                 a@(CMD _) -> mod1 \f -> FN path [f, a]
@@ -149,15 +144,22 @@ cmds =
       ),
       ( "[",
         do
-          modify \env@ENV {stack, arr} -> env {arr = stack : arr}
+          stack <- use #stack
+          arr <- use #arr
+          #arr .= stack : arr
           cmd "clr"
       ),
-      ( "]",
-        modify \e@ENV {stack, arr} -> case arr of
-          [] -> e
-          x : xs -> do
-            e {arr = xs, stack = x |> seqtoARR stack}
+      ( "]`",
+        do
+          stack <- use #stack
+          arr <- use #arr
+          case arr of
+            [] -> return ()
+            x : xs -> do
+              #arr .= xs
+              #stack .= x |> SEQ (toList stack)
       ),
+      ("]", cmd "]`" >> cmd ">A"),
       ("#", arg1 eval),
       ("*#", arg2 \f n -> timesM (toInt n) $ eval f),
       ("&#", cmd "swap" >> cmd ">?" >> cmd "*#"),
@@ -188,21 +190,14 @@ cmds =
       ("qpop", mods3 \_ _ _ -> []),
       ("swapd", mods3 \a b c -> [b, a, c]),
       ("tuck", mods2 \a b -> [b, a, b]),
-      ( "dups",
-        do
-          ENV {stack} <- get
-          push $ seqtoARR stack
-      ),
-      ("clr", modStack $ const Seq.empty),
-      ("rev", modStack Seq.reverse),
-      ( "pick",
-        modM1 \a -> checkStL a do
-          ENV {stack} <- get
-          return $ getSt a stack
-      ),
+      ("dups", use #stack >>= push . seqtoARR),
+      ("clr", #stack .= Seq.empty),
+      ("rev", #stack %= Seq.reverse),
+      ("pick", modM1 \a -> checkStL a $ use #stack <&> getSt a),
       ( "nix",
-        arg1 \a -> checkStL a $ modStack \s ->
-          Seq.deleteAt (iinv (toInt a) s) s
+        arg1 \a ->
+          checkStL a $
+            #stack %= \s -> flip Seq.deleteAt s $ iinv (toInt a) s
       ),
       ( "trade",
         arg1 \a -> checkStL a do
@@ -211,20 +206,22 @@ cmds =
       ),
       ( "roll",
         arg1 \a -> checkStL a do
-          ENV {stack} <- get
           push a >> cmd "nix"
-          push $ getSt a stack
+          use #stack >>= push . getSt a
       ),
       ( "roll_",
         arg1 \a -> checkStL a do
-          ENV {stack} <- get
           push a >> cmd "trade"
-          push $ getSt 0 stack
+          use #stack >>= push . getSt 0
       ),
       ("dip", arg2 \a f -> evalE f >> push a),
       -- logic
       ("!", cmd ">>?" >> modv1 (fTF1 not)),
       ("!`", cmd ">?" >> cmd "!"),
+      ("&", modv2 min),
+      ("&`", mod2 min),
+      ("|", modv2 max),
+      ("|`", mod2 max),
       ("<=>", modv2 \a b -> INT $ fromCmp $ compare a b),
       ("<=>`", mod2 \a b -> INT $ fromCmp $ compare a b),
       ("=", modv2 $ fTF2' (==)),
@@ -304,46 +301,48 @@ dENV = do
       }
 
 eval :: ANY -> ENVS ()
-eval (FN p a) = do
-  env@ENV {code} <- get
-  let e = env {code = a, path = p}
-   in case code of
-        [] -> put e
-        _ -> evalScoped e env >>= put
+eval (FN p a) =
+  do
+    env <- get
+    let e =
+          env
+            & #code .~ a
+            & #path .~ p
+    use #code >>= \case
+      [] -> put e
+      _ -> evalScoped e env >>= put
 eval a = do
-  ENV {path} <- get
+  path <- use #path
   eval $ toFN path a
 
 evalE :: ANY -> ENVS ()
 evalE a = evalE' a >>= put
 
 evalQ :: ANY -> ENVS ANY
-evalQ a = do
-  ENV {stack} <- evalE' a
-  return case stack of
-    Empty -> UN
-    _ :|> b -> b
+evalQ a = evalE' a <&> fromMaybe UN . (^? #stack % _last)
 
 evalE' :: (MonadState ENV m, MonadIO m) => ANY -> m ENV
-evalE' f = do
-  ENV {stack} <- get
-  evalSt f stack
+evalE' f = use #stack >>= evalSt f
 
 evalSt :: (MonadState ENV m, MonadIO m) => ANY -> Seq ANY -> m ENV
 evalSt (FN p f) stack = do
   env <- get
-  evalScoped env {code = f, path = p, stack} env
+  flip evalScoped env $
+    env
+      & #code .~ f
+      & #path .~ p
+      & #stack .~ stack
 evalSt a s = do
-  ENV {path} <- get
+  path <- use #path
   evalSt (toFN path a) s
 
 evalScoped :: MonadIO m => ENV -> ENV -> m ENV
 evalScoped e' e = do
   ENV {stack} <- eval' e'
-  return e {stack}
+  return $ e & #stack .~ stack
 
 eval' :: MonadIO m => ENV -> m ENV
-eval' e = liftIO $ unENVS loop e
+eval' = liftIO . unENVS loop
 
 evalLn :: Int -> ENVS ()
 evalLn n = do
@@ -371,22 +370,17 @@ getLn n = do
   ENV {lns, path = PATH (fp, _)} <- get
   getCM (PATH (fp, n)) lns
 
-modStack :: MonadState ENV m => (Seq ANY -> Seq ANY) -> m ()
-modStack f = modify \env -> env {stack = f $ stack env}
-
 push :: ANY -> ENVS ()
-push = modStack . flip (|>)
+push = (#stack %=) . flip (|>)
 
 pushs :: Seq ANY -> ENVS ()
-pushs = modStack . flip (><)
+pushs = (#stack %=) . flip (><)
 
 setvar :: String -> ANY -> ENVS ()
-setvar k v = modify \env -> env {scope = HM.insert k v $ scope env}
+setvar k v = #scope %= (at k ?~ v)
 
 setgvar :: String -> ANY -> ENVS ()
-setgvar k v = do
-  ENV {gscope} <- get
-  setCM v k gscope
+setgvar k v = use #gscope >>= setCM v k
 
 getvar :: String -> ENVS (Maybe ANY)
 getvar k = do
@@ -396,9 +390,7 @@ getvar k = do
     v@(Just _) -> return v
 
 getgvar :: String -> ENVS (Maybe ANY)
-getgvar k = do
-  ENV {gscope} <- get
-  getCM k gscope
+getgvar k = use #gscope >>= getCM k
 
 pushvar :: String -> String -> ENVS ()
 pushvar = fvar getvar push
@@ -413,7 +405,7 @@ evalgvar :: String -> String -> ENVS ()
 evalgvar = fvar getgvar eval
 
 getSt :: ANY -> Seq ANY -> ANY
-getSt i s = fromMaybe UN $ Seq.lookup (iinv (toInt i) s) s
+getSt i s = fromMaybe UN $ s ^? ix (iinv (toInt i) s)
 
 fvar :: (t1 -> ENVS (Maybe t2)) -> (t2 -> ENVS ()) -> String -> t1 -> ENVS ()
 fvar g f c k =
@@ -423,12 +415,11 @@ fvar g f c k =
 
 argN :: Int -> (Seq ANY -> ENVS ()) -> ENVS ()
 argN n f = do
-  env@ENV {stack} <- get
-  checkStL' n \l m ->
+  checkStL' n \l m -> do
+    stack <- use #stack
     let (a, b) = Seq.splitAt (l - m) stack
-     in do
-          put env {stack = a}
-          f b
+    #stack .= a
+    f b
 
 modN :: Int -> (Seq ANY -> ANY) -> ENVS ()
 modN n f = argN n $ push . f
@@ -505,8 +496,8 @@ checkStL n f = checkStL' (toInt n) \_ _ -> f
 
 checkStL' :: (MonadState ENV m, MonadError [Char] m) => Int -> (Int -> Int -> m b) -> m b
 checkStL' n f = do
-  ENV {stack} <- get
+  stack <- use #stack
   let l = length stack
-   in if l < n
-        then throwError $ "stack len " ++ show l ++ " < " ++ show n
-        else f l n
+  if l < n
+    then throwError $ "stack len " ++ show l ++ " < " ++ show n
+    else f l n

@@ -48,6 +48,7 @@ library
       DeriveLift
       DeriveTraversable
       DerivingStrategies
+      DuplicateRecordFields
       EmptyCase
       ExistentialQuantification
       FlexibleContexts
@@ -61,6 +62,8 @@ library
       MultiParamTypeClasses
       MultiWayIf
       NamedFieldPuns
+      NoFieldSelectors
+      OverloadedLabels
       OverloadedStrings
       PatternSynonyms
       RankNTypes
@@ -79,6 +82,7 @@ library
     , monadlist
     , mtl
     , numbers
+    , optics
     , semialign
     , split
     , stm-containers
@@ -103,6 +107,7 @@ executable hlin
     , monadlist
     , mtl
     , numbers
+    , optics
     , semialign
     , split
     , stm-containers
@@ -128,6 +133,7 @@ test-suite hlin-test
     , monadlist
     , mtl
     , numbers
+    , optics
     , semialign
     , split
     , stm-containers

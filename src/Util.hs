@@ -3,7 +3,7 @@ module Util where
 import Data.Char (ord, readLitChar)
 import Data.Foldable (foldl', toList)
 import Data.Ratio (denominator)
-import Data.Sequence (Seq (..), (!?), (|>))
+import Data.Sequence (Seq (..), (|>))
 import qualified Data.Sequence as Seq
 import qualified Data.Text as T
 import Data.Vector (Vector)
@@ -14,7 +14,7 @@ isMin :: (Eq t, Num t) => t -> [a] -> Bool
 isMin n = (> GT) . cmpNL n
 
 cmpLN :: (Eq a1, Num a1) => [a2] -> a1 -> Ordering
-cmpLN a = compare EQ . flip cmpNL a
+cmpLN a = compare EQ . (`cmpNL` a)
 
 cmpNL :: (Eq t, Num t) => t -> [a] -> Ordering
 cmpNL 0 [] = EQ
@@ -22,8 +22,10 @@ cmpNL 0 _ = LT
 cmpNL _ [] = GT
 cmpNL n (_ : xs) = cmpNL (n - 1) xs
 
-cmpSN a = compare EQ . flip cmpNS a
+cmpSN :: (Ord a, Num a) => String -> a -> Ordering
+cmpSN a = compare EQ . (`cmpNS` a)
 
+cmpNS :: (Ord a, Num a) => a -> String -> Ordering
 cmpNS _ "" = GT
 cmpNS n s = compare n $ fromIntegral $ ord $ head s
 

@@ -245,4 +245,4 @@ afrem :: RealFrac a => a -> a -> a
 afrem a b = a - b * fromInteger (truncate (a / b))
 
 atimes :: Integral b => b -> ANY -> ANY
-atimes n = if n <= 0 then flip matchT UN else stimes n
+atimes n = if n <= 0 then (`matchT` UN) else stimes n
