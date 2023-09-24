@@ -17,7 +17,7 @@ import Data.Sequence (Seq (..), (><))
 import qualified Data.Sequence as Seq
 import qualified Data.Text as T
 import GHC.Conc (atomically)
-import Lambda
+import Lambda (loopFN)
 import Optics
 import Optics.State.Operators ((%=), (.=))
 import qualified StmContainers.Map as CM
