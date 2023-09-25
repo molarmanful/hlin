@@ -15,7 +15,7 @@ loop = do
   xs <- use #xs
   n <- use #n
   if n <= 0 || null xs
-    then return ()
+    then pure ()
     else do
       let (c : cs) = xs
       #n %= (+) case c of

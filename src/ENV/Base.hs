@@ -44,7 +44,7 @@ loadLines = flip
 loop :: ENVS ()
 loop =
   use #code >>= \case
-    [] -> return ()
+    [] -> pure ()
     x : xs -> do
       #code .= xs
       choice x
@@ -62,7 +62,7 @@ cmd (stripPrefix "=$$" -> Just k@(_ : _)) = arg1 (setgvar k)
 cmd (stripPrefix "=$" -> Just k@(_ : _)) = arg1 (setvar k)
 cmd c@(stripPrefix "$$" -> Just k@(_ : _)) = pushgvar c k
 cmd c@('$' : k@(_ : _)) = pushvar c k
-cmd ('#' : _ : _) = return ()
+cmd ('#' : _ : _) = pure ()
 cmd "[" = do
   stack <- use #stack
   arr <- use #arr
@@ -124,7 +124,7 @@ cmds =
       ( "'",
         modM2 \a -> vecM1 \f -> do
           ENV {stack} <- evalSt f $ seqfromARR a
-          return $ seqtoARR stack
+          pure $ seqtoARR stack
       ),
       ("'_", arg1 \a -> cmd' ",`" >> push a >> cmd' "Q" >> cmd' ",,_"),
       -- flow
@@ -152,7 +152,7 @@ cmds =
           push $ FN path cs
           cmd c
       ),
-      (")", return ()),
+      (")", pure ()),
       ( "[",
         do
           stack <- use #stack
@@ -165,7 +165,7 @@ cmds =
           stack <- use #stack
           arr <- use #arr
           case arr of
-            [] -> return ()
+            [] -> pure ()
             x : xs -> do
               #arr .= xs
               #stack .= x |> SEQ (toList stack)
@@ -300,7 +300,7 @@ dENV = do
   lns <- liftIO CM.newIO
   gscope <- liftIO CM.newIO
   gids <- liftIO CM.newIO
-  return
+  pure
     ENV
       { lns,
         code = [],
@@ -368,7 +368,7 @@ evalSt a s = do
 evalScoped :: MonadIO m => ENV -> ENV -> m ENV
 evalScoped e' e = do
   ENV {stack} <- eval' e'
-  return $ e & #stack .~ stack
+  pure $ e & #stack .~ stack
 
 eval' :: MonadIO m => ENV -> m ENV
 eval' = liftIO . unENVS loop
@@ -376,7 +376,7 @@ eval' = liftIO . unENVS loop
 evalLn :: Int -> ENVS ()
 evalLn =
   fnLn >=> \case
-    Nothing -> return ()
+    Nothing -> pure ()
     Just (LINE (_, a)) -> mapM_ eval a
 
 -- | caches line for execution
@@ -390,8 +390,8 @@ fnLn n = do
       let p = PATH (fp, n)
           l' = LINE (a, Just $ FN p $ parse [a])
       setCM l' p lns
-      return $ Just l'
-    _ -> return l
+      pure $ Just l'
+    _ -> pure l
 
 getLn :: Int -> ENVS (Maybe LINE)
 getLn n = do
@@ -416,7 +416,7 @@ getvar k = do
   scope <- use #scope
   case scope ^. at k of
     Nothing -> getgvar k
-    v -> return v
+    v -> pure v
 
 getgvar :: String -> ENVS (Maybe ANY)
 getgvar k = use #gscope >>= getCM k
@@ -512,7 +512,7 @@ unENVS f = execStateT do
   r <- runExceptT f
   case r of
     Left e -> error e
-    Right a -> return a
+    Right a -> pure a
 
 setCM :: (MonadIO m, Hashable key) => value -> key -> CM.Map key value -> m ()
 setCM v k = liftIO . atomically . CM.insert v k

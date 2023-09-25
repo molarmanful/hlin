@@ -61,7 +61,7 @@ unescStr =
   fst . head . readP_to_S do
     s <- many $ readS_to_P readLitChar
     eof
-    return s
+    pure s
 
 seqtovec :: Seq a -> Vector a
 seqtovec = V.fromList . toList
@@ -96,5 +96,5 @@ iinv i s
 
 timesM :: (Ord t, Num t, Monad m) => t -> m a -> m ()
 timesM n f
-  | n <= 0 = return ()
+  | n <= 0 = pure ()
   | otherwise = f >> timesM (n - 1) f
