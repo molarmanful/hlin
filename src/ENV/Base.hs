@@ -175,7 +175,7 @@ cmds =
       ("*#", arg2 \f n -> timesM (toInt n) $ eval f),
       ("&#", cmd "swap" >> cmd ">?" >> cmd "*#"),
       ("|#", cmd "swap" >> cmd "!`" >> cmd "*#"),
-      ("Q", modMv1 evalQ),
+      ("Q", modMv1 evalA1),
       ("@@", arg1 $ evalLn . toInt),
       ("@~", cmd "$L" >> cmd "+" >> cmd "@@"),
       ("@", push 0 >> cmd "@~"),
@@ -204,7 +204,7 @@ cmds =
       ("dups", use #stack >>= push . seqtoARR),
       ("clr", #stack .= Seq.empty),
       ("rev", #stack %= Seq.reverse),
-      ("pick", modM1 \a -> checkStL a $ use #stack <&> getSt a),
+      ("pick", modM1 \a -> checkStL a $ getSt a <$> use #stack),
       ( "nix",
         arg1 \a ->
           checkStL a $
@@ -288,7 +288,9 @@ cmds =
       ("tk", mod2 \a -> vec1 $ (`atake` a) . toInt),
       ("dp", mod2 \a -> vec1 $ (`adrop` a) . toInt),
       ("rep", modv1 $ SEQ . repeat),
-      ("cyc", mod1 $ fSEQ1 cycle)
+      ("cyc", mod1 $ fSEQ1 cycle),
+      -- traversal
+      ("map", modM2 \a f -> amapM (e1A1 f) a)
     ]
 
 -- convenience
@@ -311,7 +313,8 @@ dENV = do
         arr = []
       }
 
-eval :: ANY -> ENVS ()
+-- | callstack-friendly
+eval :: (MonadState ENV m, MonadIO m) => ANY -> m ()
 eval (FN p a) =
   do
     env <- get
@@ -326,15 +329,29 @@ eval a = do
   path <- use #path
   eval $ toFN path a
 
-evalE :: ANY -> ENVS ()
+-- | not callstack-friendly
+evalE :: (MonadState ENV m, MonadIO m) => ANY -> m ()
 evalE a = evalE' a >>= put
 
-evalQ :: ANY -> ENVS ANY
-evalQ a = evalE' a <&> fromMaybe UN . (^? #stack % _last)
+-- | user-supplied stack, returns stack
+evalS :: (MonadState ENV f, MonadIO f) => ANY -> Seq ANY -> f (Seq ANY)
+evalS a = fmap (^. #stack) . evalSt a
 
+-- | env-supplied stack, returns top item
+evalA1 :: (MonadState ENV f, MonadIO f) => ANY -> f ANY
+evalA1 a = use #stack >>= fmap (getSt 0) . evalS a
+
+e1A1 :: (MonadState ENV m, MonadIO m) => ANY -> ANY -> m ANY
+e1A1 f a = getSt 0 <$> evalS f (Seq.singleton a)
+
+e2A1 :: (MonadState ENV m, MonadIO m) => ANY -> ANY -> ANY -> m ANY
+e2A1 f a b = getSt 0 <$> evalS f (Seq.singleton a |> b)
+
+-- | env-supplied stack
 evalE' :: (MonadState ENV m, MonadIO m) => ANY -> m ENV
 evalE' f = use #stack >>= evalSt f
 
+-- | user-supplied stack
 evalSt :: (MonadState ENV m, MonadIO m) => ANY -> Seq ANY -> m ENV
 evalSt (FN p f) stack = do
   env <- get
@@ -347,6 +364,7 @@ evalSt a s = do
   path <- use #path
   evalSt (toFN path a) s
 
+-- | returns new env
 evalScoped :: MonadIO m => ENV -> ENV -> m ENV
 evalScoped e' e = do
   ENV {stack} <- eval' e'
@@ -361,6 +379,7 @@ evalLn =
     Nothing -> return ()
     Just (LINE (_, a)) -> mapM_ eval a
 
+-- | caches line for execution
 fnLn :: Int -> ENVS (Maybe LINE)
 fnLn n = do
   lns <- use #lns

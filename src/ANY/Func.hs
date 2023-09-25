@@ -105,6 +105,8 @@ azipAll da db a b = fARR2 (alignWith (apair . fromThese da db)) a b
 
 -- monads
 
+asequence = undefined
+
 amapM :: Monad f => (ANY -> f ANY) -> ANY -> f ANY
 amapM f (SEQ a) = SEQ <$> mapM f a
 amapM f (FN p a) = FN p <$> mapM f a
