@@ -285,8 +285,8 @@ cmds =
       ("cosh_", modv1 acosh),
       ("tanh_", modv1 atanh),
       -- lazy
-      ("tk", undefined),
-      ("dp", undefined),
+      ("tk", mod2 \a -> vec1 $ (`atake` a) . toInt),
+      ("dp", mod2 \a -> vec1 $ (`adrop` a) . toInt),
       ("rep", modv1 $ SEQ . repeat),
       ("cyc", mod1 $ fSEQ1 cycle)
     ]

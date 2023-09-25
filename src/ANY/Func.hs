@@ -7,6 +7,7 @@ import Control.Monad (zipWithM)
 import Control.Monad.ListM (zipWithM3)
 import Data.Align (Semialign (alignWith))
 import Data.Text (Text)
+import qualified Data.Text as T
 import Data.These (fromThese)
 import Data.Vector (Vector)
 import qualified Data.Vector as V
@@ -184,6 +185,9 @@ fNum2 f a b = fNum2 f (toNum a) b
 fNUM1 :: (Double -> Double) -> ANY -> ANY
 fNUM1 = acb NUM toNUMW
 
+fNUM2 :: (Double -> Double -> Double) -> ANY -> ANY -> ANY
+fNUM2 = acb2 NUM toNUMW
+
 fSTR1 :: (Text -> Text) -> ANY -> ANY
 fSTR1 = acb STR toSTRW
 
@@ -232,7 +236,8 @@ apow (INT a) (INT b)
   | otherwise = INT (a ^ b)
 apow (NUM a) (INT b) = NUM a ^^ b
 apow a (INT b) = RAT (toRATW a ^^ b)
-apow a b = acb2 NUM toNUMW (**) a b
+apow (Num a) (Num b) = fNUM2 (**) a b
+apow a b = apow (toNum a) $ toNum b
 
 afmod :: RealFrac a => a -> a -> a
 afmod a b
@@ -248,3 +253,17 @@ atimes :: Integral b => b -> ANY -> ANY
 atimes n
   | n <= 0 = (`matchT` UN)
   | otherwise = stimes n
+
+atake :: Int -> ANY -> ANY
+atake n a | n < 0 = adrop (n + alength a) a
+atake n (STR a) = STR $ T.take n a
+atake n a@(Listy x) = matchT a $ SEQ $ take n x
+atake n (ARR a) = ARR $ V.take n a
+atake n a = matchT a $ fSEQ1 (take n) a
+
+adrop :: Int -> ANY -> ANY
+adrop n a | n < 0 = atake (n + alength a) a
+adrop n (STR a) = STR $ T.drop n a
+adrop n a@(Listy x) = matchT a $ SEQ $ drop n x
+adrop n (ARR a) = ARR $ V.drop n a
+adrop n a = matchT a $ fSEQ1 (drop n) a

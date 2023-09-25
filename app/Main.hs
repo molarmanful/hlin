@@ -1,6 +1,5 @@
 module Main (main) where
 
-import Data.Foldable (toList)
 import ENV (run)
 import System.Environment (getArgs)
 
