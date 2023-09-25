@@ -61,9 +61,6 @@ instance Floating ANY where
   acosh = fNUM1 acosh
   atanh = fNUM1 atanh
 
--- TODO: this
-instance RealFloat ANY
-
 instance Semigroup ANY where
   FN p a <> b = FN p $ a <> toSEQW b
   a <> b@(FN p _) = toFN p a <> b
@@ -230,19 +227,24 @@ apair :: (ANY, ANY) -> ANY
 apair = SEQ . pair
 
 apow :: ANY -> ANY -> ANY
-apow (INT a) (INT b) =
-  if b < 0
-    then RAT (toRational a ^^ b)
-    else INT (a ^ b)
+apow (INT a) (INT b)
+  | b < 0 = RAT (toRational a ^^ b)
+  | otherwise = INT (a ^ b)
 apow (NUM a) (INT b) = NUM a ^^ b
 apow a (INT b) = RAT (toRATW a ^^ b)
 apow a b = acb2 NUM toNUMW (**) a b
 
 afmod :: RealFrac a => a -> a -> a
-afmod a b = if m < 0 then m + b else m where m = afrem a b
+afmod a b
+  | m < 0 = m + b
+  | otherwise = m
+  where
+    m = afrem a b
 
 afrem :: RealFrac a => a -> a -> a
 afrem a b = a - b * fromInteger (truncate (a / b))
 
 atimes :: Integral b => b -> ANY -> ANY
-atimes n = if n <= 0 then (`matchT` UN) else stimes n
+atimes n
+  | n <= 0 = (`matchT` UN)
+  | otherwise = stimes n

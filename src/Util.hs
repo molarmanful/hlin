@@ -82,19 +82,19 @@ fromCmp = \case
   GT -> 1
 
 toCmp :: (Ord a, Num a) => a -> Ordering
-toCmp a =
-  if
-      | a < 0 -> LT
-      | a > 0 -> GT
-      | otherwise -> EQ
+toCmp a
+  | a < 0 = LT
+  | a > 0 = GT
+  | otherwise = EQ
 
 iinv :: Foldable t => Int -> t a -> Int
-iinv i s = if n < 0 then n + length s else n
+iinv i s
+  | n < 0 = n + length s
+  | otherwise = n
   where
     n = -i - 1
 
 timesM :: (Ord t, Num t, Monad m) => t -> m a -> m ()
-timesM n f =
-  if n <= 0
-    then return ()
-    else f >> timesM (n - 1) f
+timesM n f
+  | n <= 0 = return ()
+  | otherwise = f >> timesM (n - 1) f

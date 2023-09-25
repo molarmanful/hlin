@@ -34,10 +34,9 @@ instance Show ANY where
   show (SEQ a) = case a of
     [] -> "[]`"
     _ -> "[ " ++ unwords (show <$> a) ++ " ]`"
-  show (ARR a) =
-    if null a
-      then "[]"
-      else "[ " ++ unwords (toList $ show <$> a) ++ " ]"
+  show (ARR a)
+    | null a = "[]"
+    | otherwise = "[ " ++ unwords (toList $ show <$> a) ++ " ]"
   show (MAP a) =
     "{ "
       ++ unwords
@@ -176,11 +175,10 @@ toFrac a@(INT _) = toRAT a
 toFrac a = toRAT a
 
 ratNum :: Rational -> ANY
-ratNum n =
-  if
-      | canInteger n -> INT $ truncate n
-      | canDouble n -> NUM $ realToFrac n
-      | otherwise -> RAT n
+ratNum n
+  | canInteger n = INT $ truncate n
+  | canDouble n = NUM $ realToFrac n
+  | otherwise = RAT n
 
 toBigN :: Rational -> ANY
 toBigN (a :% 1) = INT a
