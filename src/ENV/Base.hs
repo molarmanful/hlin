@@ -7,12 +7,12 @@ import ANY
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.State (MonadState, StateT, execStateT, get, put)
-import Data.Foldable (toList)
 import Data.HashMap.Lazy (HashMap)
 import qualified Data.HashMap.Lazy as HM
 import Data.Hashable (Hashable)
 import Data.List (stripPrefix)
 import Data.Maybe (fromMaybe)
+import Data.MonoTraversable
 import Data.Sequence (Seq (..), (><))
 import qualified Data.Sequence as Seq
 import qualified Data.Text as T
@@ -25,7 +25,7 @@ import Types
 import Util
 
 instance Show ENV where
-  show = unlines . map show . toList . view #stack
+  show = unlines . map show . otoList . view #stack
 
 run :: String -> IO ENV
 run s =
@@ -168,7 +168,7 @@ cmds =
             [] -> pure ()
             x : xs -> do
               #arr .= xs
-              #stack .= x |> SEQ (toList stack)
+              #stack .= x |> SEQ (otoList stack)
       ),
       ("]", cmd "]`" >> cmd ">A"),
       ("#", arg1 eval),

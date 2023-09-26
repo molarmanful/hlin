@@ -81,12 +81,14 @@ library
     , containers
     , hashable
     , monadlist
+    , mono-traversable
     , mtl
     , numbers
     , optics
     , semialign
     , split
     , stm-containers
+    , streaming
     , text
     , these
     , unordered-containers
@@ -106,12 +108,14 @@ executable hlin
     , hashable
     , hlin
     , monadlist
+    , mono-traversable
     , mtl
     , numbers
     , optics
     , semialign
     , split
     , stm-containers
+    , streaming
     , text
     , these
     , unordered-containers
@@ -132,12 +136,14 @@ test-suite hlin-test
     , hashable
     , hlin
     , monadlist
+    , mono-traversable
     , mtl
     , numbers
     , optics
     , semialign
     , split
     , stm-containers
+    , streaming
     , text
     , these
     , unordered-containers

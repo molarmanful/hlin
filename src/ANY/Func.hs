@@ -6,7 +6,10 @@ import ANY.Base
 import Control.Monad (zipWithM)
 import Control.Monad.ListM (zipWithM3)
 import Data.Align (Semialign (alignWith))
+import Data.Foldable (foldl')
+import Data.List (foldl1')
 import Data.Maybe (fromMaybe)
+import Data.MonoTraversable
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.These (fromThese)
@@ -65,6 +68,8 @@ instance Floating ANY where
   atanh = fNUM1 atanh
 
 instance Semigroup ANY where
+  UN <> a = a
+  a <> UN = a
   FN p a <> b = FN p $ a <> toSEQW b
   a <> b@(FN p _) = toFN p a <> b
   SEQ a <> b = SEQ $ a <> toSEQW b
@@ -76,24 +81,44 @@ instance Semigroup ANY where
   a <> b@(STR _) = toSTR a <> b
   a <> b = SEQ [a, b]
 
+instance Monoid ANY where
+  mempty = UN
+
+instance MonoFunctor ANY where
+  omap f a@(Listy x) = matchT a $ SEQ $ f <$> x
+  omap f a = fARR1 (f <$>) a
+
+instance MonoFoldable ANY where
+  onull = toTFW
+  olength = alength
+  otoList = toSEQW
+  headEx = fromMaybe UN . aget' 0
+  lastEx = fromMaybe UN . aget' (-1)
+  ofoldMap f = ofoldr (mappend . f) mempty
+  ofoldr f a (Listy x) = foldr f a x
+  ofoldr f a x = foldr f a $ toARRW x
+  ofoldl' f a (Listy x) = foldl' f a x
+  ofoldl' f a x = foldl' f a $ toARRW x
+  ofoldr1Ex f (Listy x) = foldr1 f x
+  ofoldr1Ex f x = foldr1 f $ toARRW x
+  ofoldl1Ex' f (Listy x) = foldl1' f x
+  ofoldl1Ex' f x = V.foldl1' f $ toARRW x
+
+instance MonoTraversable ANY where
+  otraverse f a@(Listy x) = matchT a . SEQ <$> traverse f x
+  otraverse f a = ARR <$> traverse f (toARRW a)
+
 -- functors
 
-amap :: (ANY -> ANY) -> ANY -> ANY
-amap f (FN p a) = FN p $ f <$> a
-amap f (SEQ a) = SEQ $ f <$> a
-amap f a = fARR1 (f <$>) a
-
 azipWith :: (ANY -> ANY -> ANY) -> ANY -> ANY -> ANY
-azipWith f a@(FN p _) b@(FN _ _) = toFN p $ azipWith f (toSEQ a) b
-azipWith f a@(SEQ _) b = fSEQ2 (zipWith f) a b
-azipWith f a b@(SEQ _) = fSEQ2 (zipWith f) a b
+azipWith f a@(Listy _) b = matchT a $ fSEQ2 (zipWith f) a b
+azipWith f a b@(Listy _) = matchT b $ fSEQ2 (zipWith f) a b
 azipWith f a b = fARR2 (V.zipWith f) a b
 
 azipWith3 :: (ANY -> ANY -> ANY -> ANY) -> ANY -> ANY -> ANY -> ANY
-azipWith3 f a@(FN p _) b@(FN _ _) c@(FN _ _) = toFN p $ azipWith3 f (toSEQ a) b c
-azipWith3 f a@(SEQ _) b c = fSEQ3 (zipWith3 f) a b c
-azipWith3 f a b@(SEQ _) c = fSEQ3 (zipWith3 f) a b c
-azipWith3 f a b c@(SEQ _) = fSEQ3 (zipWith3 f) a b c
+azipWith3 f a@(Listy _) b c = matchT a $ fSEQ3 (zipWith3 f) a b c
+azipWith3 f a b@(Listy _) c = matchT b $ fSEQ3 (zipWith3 f) a b c
+azipWith3 f a b c@(Listy _) = matchT c $ fSEQ3 (zipWith3 f) a b c
 azipWith3 f a b c = fARR3 (V.zipWith3 f) a b c
 
 azip :: ANY -> ANY -> ANY
@@ -101,34 +126,31 @@ azip = azipWith \a b -> SEQ [a, b]
 
 azipAll :: ANY -> ANY -> ANY -> ANY -> ANY
 azipAll da db a@(FN p _) b@(FN _ _) = toFN p $ azipAll da db (toSEQ a) b
-azipAll da db a@(SEQ _) b = fSEQ2 (alignWith $ apair . fromThese da db) a b
+azipAll da db a@(Listy _) b = matchT a $ fSEQ2 (alignWith $ apair . fromThese da db) a b
 azipAll da db a b@(SEQ _) = azipAll da db (toSEQ a) b
 azipAll da db a b = fARR2 (alignWith (apair . fromThese da db)) a b
 
 -- monads
 
 amapM :: Monad f => (ANY -> f ANY) -> ANY -> f ANY
-amapM f (SEQ a) = SEQ <$> mapM f a
-amapM f (FN p a) = FN p <$> mapM f a
+amapM f a@(Listy x) = matchT a . SEQ <$> mapM f x
 amapM f a = ARR <$> mapM f (toARRW a)
 
 azipWithM :: Monad f => (ANY -> ANY -> f ANY) -> ANY -> ANY -> f ANY
-azipWithM f a@(FN p _) b@(FN _ _) = toFN p <$> azipWithM f (toSEQ a) b
-azipWithM f (SEQ a) b = SEQ <$> zipWithM f a (toSEQW b)
-azipWithM f a b@(SEQ _) = azipWithM f (toSEQ a) b
+azipWithM f a@(Listy x) b = matchT a . SEQ <$> zipWithM f x (toSEQW b)
+azipWithM f a b@(Listy _) = matchT b <$> azipWithM f (toSEQ a) b
 azipWithM f a b = ARR <$> V.zipWithM f (toARRW a) (toARRW b)
 
 azipWithM3 :: Monad f => (ANY -> ANY -> ANY -> f ANY) -> ANY -> ANY -> ANY -> f ANY
-azipWithM3 f a@(FN p _) b@(FN _ _) c@(FN _ _) = toFN p <$> azipWithM3 f (toSEQ a) b c
-azipWithM3 f (SEQ a) b c = SEQ <$> zipWithM3 f a (toSEQW b) (toSEQW c)
-azipWithM3 f a b@(SEQ _) c = azipWithM3 f (toSEQ a) b c
-azipWithM3 f a b c@(SEQ _) = azipWithM3 f (toSEQ a) b c
+azipWithM3 f x@(Listy a) b c = matchT x . SEQ <$> zipWithM3 f a (toSEQW b) (toSEQW c)
+azipWithM3 f a x@(Listy _) c = matchT x <$> azipWithM3 f (toSEQ a) x c
+azipWithM3 f a b x@(Listy _) = matchT x <$> azipWithM3 f (toSEQ a) b x
 azipWithM3 f a b c = toARR <$> azipWithM3 f (toSEQ a) b c
 
 -- vectorizations
 
 vec1 :: (ANY -> ANY) -> ANY -> ANY
-vec1 f (Itr a) = amap (vec1 f) a
+vec1 f (Itr a) = omap (vec1 f) a
 vec1 f a = f a
 
 vec2 :: (ANY -> ANY -> ANY) -> ANY -> ANY -> ANY
@@ -148,7 +170,7 @@ vec3 f a b (Itr c) = vec1 (f a b) c
 vec3 f a b c = f a b c
 
 vecM1 :: Monad f => (ANY -> f ANY) -> ANY -> f ANY
-vecM1 f (Itr a) = amapM (vecM1 f) a
+vecM1 f (Itr a) = omapM (vecM1 f) a
 vecM1 f a = f a
 
 vecM2 :: Monad f => (ANY -> ANY -> f ANY) -> ANY -> ANY -> f ANY

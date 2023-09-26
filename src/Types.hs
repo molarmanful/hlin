@@ -5,8 +5,9 @@ import Control.Monad.State (State, StateT)
 import Data.HashMap.Lazy (HashMap)
 import Data.Hashable (Hashable)
 import Data.Map (Map)
+import Data.MonoTraversable (Element)
 import Data.Sequence (Seq)
-import qualified Data.Text as T
+import Data.Text (Text)
 import Data.Vector (Vector)
 import GHC.Generics (Generic)
 import qualified StmContainers.Map as CM
@@ -32,12 +33,14 @@ data ANY
   | RAT Rational
   | INT Integer
   | NUM Double
-  | STR T.Text
+  | STR Text
   | CMD String
   | FN PATH [ANY]
   | SEQ [ANY]
   | ARR (Vector ANY)
   | MAP (Map ANY ANY)
+
+type instance Element ANY = ANY
 
 type Parser a = State ParserS a
 

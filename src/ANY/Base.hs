@@ -7,6 +7,7 @@ import Data.Foldable (Foldable (toList))
 import qualified Data.List as L
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.MonoTraversable
 import Data.Sequence (Seq)
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -190,7 +191,7 @@ toTFW (TF a) = a
 toTFW (RAT a) = a /= 0
 toTFW (INT a) = a /= 0
 toTFW (NUM a) = a /= 0
-toTFW (STR a) = not $ T.null a
+toTFW (STR a) = not $ onull a
 toTFW (CMD a) = not $ null a
 toTFW (FN _ a) = not $ null a
 toTFW (SEQ a) = not $ null a
@@ -280,6 +281,7 @@ txtRat a = case T.signed T.rational a of
 
 -- convenience
 alength :: ANY -> Int
+alength UN = 0
 alength (STR a) = T.length a
 alength (CMD a) = length a
 alength (Listy a) = length a

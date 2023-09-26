@@ -26,6 +26,8 @@ dependencies:
   - hashable
   - monadlist
   - optics
+  - mono-traversable
+  - streaming
 
 ghc-options:
   - -Wall
