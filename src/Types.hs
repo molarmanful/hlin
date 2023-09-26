@@ -26,7 +26,6 @@ data ENV = ENV
   }
   deriving (Generic)
 
--- TODO: add MAP
 data ANY
   = UN
   | TF Bool
