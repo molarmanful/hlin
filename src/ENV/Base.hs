@@ -293,7 +293,7 @@ cmds =
       (":", mod2 $ vec1 . flip aget),
       (":`", mod2 $ flip aget),
       -- traversal
-      ("map", modM2 \a f -> amapM (e1A1 f) a)
+      ("map", modM2 \a f -> omapM (e1A1 f) a)
     ]
 
 -- convenience

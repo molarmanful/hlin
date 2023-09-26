@@ -132,10 +132,6 @@ azipAll da db a b = fARR2 (alignWith (apair . fromThese da db)) a b
 
 -- monads
 
-amapM :: Monad f => (ANY -> f ANY) -> ANY -> f ANY
-amapM f a@(Listy x) = matchT a . SEQ <$> mapM f x
-amapM f a = ARR <$> mapM f (toARRW a)
-
 azipWithM :: Monad f => (ANY -> ANY -> f ANY) -> ANY -> ANY -> f ANY
 azipWithM f a@(Listy x) b = matchT a . SEQ <$> zipWithM f x (toSEQW b)
 azipWithM f a b@(Listy _) = matchT b <$> azipWithM f (toSEQ a) b
