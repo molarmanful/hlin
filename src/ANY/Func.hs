@@ -6,12 +6,14 @@ import ANY.Base
 import Control.Monad (zipWithM)
 import Control.Monad.ListM (zipWithM3)
 import Data.Align (Semialign (alignWith))
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.These (fromThese)
 import Data.Vector (Vector)
 import qualified Data.Vector as V
 import GHC.Base (stimes)
+import Optics
 import Types
 import Util
 
@@ -104,8 +106,6 @@ azipAll da db a b@(SEQ _) = azipAll da db (toSEQ a) b
 azipAll da db a b = fARR2 (alignWith (apair . fromThese da db)) a b
 
 -- monads
-
-asequence = undefined
 
 amapM :: Monad f => (ANY -> f ANY) -> ANY -> f ANY
 amapM f (SEQ a) = SEQ <$> mapM f a
@@ -269,3 +269,12 @@ adrop n (STR a) = STR $ T.drop n a
 adrop n a@(Listy x) = matchT a $ SEQ $ drop n x
 adrop n (ARR a) = ARR $ V.drop n a
 adrop n a = matchT a $ fSEQ1 (drop n) a
+
+aget :: ANY -> ANY -> ANY
+aget k (MAP a) = fromMaybe UN $ a ^. at k
+aget i a = fromMaybe UN $ aget' (toInt i) a
+
+aget' :: Int -> ANY -> Maybe ANY
+aget' i a | i < 0 = aget' (i + alength a) a
+aget' i (Listy a) = a ^? ix i
+aget' i a = toARRW a ^? ix i

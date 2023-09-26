@@ -285,10 +285,13 @@ cmds =
       ("cosh_", modv1 acosh),
       ("tanh_", modv1 atanh),
       -- lazy
-      ("tk", mod2 \a -> vec1 $ (`atake` a) . toInt),
-      ("dp", mod2 \a -> vec1 $ (`adrop` a) . toInt),
       ("rep", modv1 $ SEQ . repeat),
       ("cyc", mod1 $ fSEQ1 cycle),
+      -- list
+      ("tk", mod2 \a -> vec1 $ (`atake` a) . toInt),
+      ("dp", mod2 \a -> vec1 $ (`adrop` a) . toInt),
+      (":", mod2 $ vec1 . flip aget),
+      (":`", mod2 $ flip aget),
       -- traversal
       ("map", modM2 \a f -> amapM (e1A1 f) a)
     ]
