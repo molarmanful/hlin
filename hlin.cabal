@@ -88,7 +88,6 @@ library
     , semialign
     , split
     , stm-containers
-    , streaming
     , text
     , these
     , unordered-containers
@@ -115,7 +114,6 @@ executable hlin
     , semialign
     , split
     , stm-containers
-    , streaming
     , text
     , these
     , unordered-containers
@@ -143,7 +141,6 @@ test-suite hlin-test
     , semialign
     , split
     , stm-containers
-    , streaming
     , text
     , these
     , unordered-containers

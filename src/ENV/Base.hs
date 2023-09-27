@@ -6,7 +6,7 @@ module ENV.Base where
 import ANY
 import Control.Monad
 import Control.Monad.Except
-import Control.Monad.State (MonadState, StateT, execStateT, get, put)
+import Control.Monad.State.Lazy (MonadState, StateT, execStateT, get, put)
 import Data.HashMap.Lazy (HashMap)
 import qualified Data.HashMap.Lazy as HM
 import Data.Hashable (Hashable)
@@ -342,9 +342,9 @@ evalS a = fmap (^. #stack) . evalSt a
 
 -- | env-supplied stack, returns top item
 evalA1 :: (MonadState ENV f, MonadIO f) => ANY -> f ANY
-evalA1 a = use #stack >>= fmap (getSt 0) . evalS a
+evalA1 a = use #stack >>= (getSt 0 <$>) . evalS a
 
-e1A1 :: (MonadState ENV m, MonadIO m) => ANY -> ANY -> m ANY
+e1A1 :: (MonadState ENV f, MonadIO f) => ANY -> ANY -> f ANY
 e1A1 f a = getSt 0 <$> evalS f (Seq.singleton a)
 
 e2A1 :: (MonadState ENV m, MonadIO m) => ANY -> ANY -> ANY -> m ANY
