@@ -6,7 +6,7 @@ module ENV.Base where
 import ANY
 import Control.Monad
 import Control.Monad.Except
-import Control.Monad.State.Lazy (MonadState, StateT, execStateT, get, put)
+import Control.Monad.State (MonadState, StateT, execStateT, get, put)
 import Data.HashMap.Lazy (HashMap)
 import qualified Data.HashMap.Lazy as HM
 import Data.Hashable (Hashable)
