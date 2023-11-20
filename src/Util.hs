@@ -87,7 +87,7 @@ toCmp a
   | a > 0 = GT
   | otherwise = EQ
 
-iinv :: Foldable t => Int -> t a -> Int
+iinv :: (Foldable t) => Int -> t a -> Int
 iinv i s
   | n < 0 = n + length s
   | otherwise = n

@@ -4,6 +4,7 @@
 module ANY.Base where
 
 import Data.Foldable (Foldable (toList))
+import qualified Data.HashMap.Lazy as HM
 import qualified Data.List as L
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -29,7 +30,7 @@ instance Show ANY where
   show (NUM a) = show a
   show (RAT (n :% d)) = show n ++ "%" ++ show d
   show (INT a) = show a
-  show (FN _ a) = case a of
+  show (FN _ _ a) = case a of
     [] -> "()"
     _ -> "( " ++ unwords (show <$> a) ++ " )"
   show (SEQ a) = case a of
@@ -57,7 +58,7 @@ instance Eq ANY where
   Num a == INT b = toINTW a == b
   STR a == STR b = a == b
   Str a == Str b = toSTRW a == toSTRW b
-  FN _ a == FN _ b = a == b
+  FN _ _ a == FN _ _ b = a == b
   SEQ a == SEQ b = a == b
   ARR a == ARR b = a == b
   MAP a == MAP b = a == b
@@ -112,7 +113,7 @@ matchT (INT _) = toINT
 matchT (NUM _) = toNUM
 matchT (STR _) = toSTR
 matchT (CMD _) = toCMD
-matchT (FN p _) = toFN p
+matchT (FN p s _) = toFN p s
 matchT (SEQ _) = toSEQ
 matchT (ARR _) = toARR
 matchT (MAP _) = toMAP
@@ -147,10 +148,10 @@ toCMD a = case a of
   CMD _ -> a
   _ -> CMD $ toStr a
 
-toFN :: PATH -> ANY -> ANY
-toFN p a = case a of
-  FN _ _ -> a
-  _ -> FN p $ toFNW a
+toFN :: PATH -> SCOPE -> ANY -> ANY
+toFN p s a = case a of
+  FN _ _ b -> FN p s b
+  _ -> FN p s $ toFNW a
 
 toSEQ :: ANY -> ANY
 toSEQ a = case a of
@@ -193,7 +194,7 @@ toTFW (INT a) = a /= 0
 toTFW (NUM a) = a /= 0
 toTFW (STR a) = not $ onull a
 toTFW (CMD a) = not $ null a
-toTFW (FN _ a) = not $ null a
+toTFW (FN _ _ a) = not $ null a
 toTFW (SEQ a) = not $ null a
 toTFW (ARR a) = not $ null a
 toTFW (MAP a) = not $ null a
@@ -206,7 +207,7 @@ toSTRW (INT a) = T.pack $ show a
 toSTRW (NUM a) = T.pack $ show a
 toSTRW (STR a) = a
 toSTRW (CMD a) = T.pack a
-toSTRW (FN _ a) = T.intercalate " " $ toSTRW <$> a
+toSTRW (FN _ _ a) = T.intercalate " " $ toSTRW <$> a
 toSTRW (SEQ a) = mconcat $ toSTRW <$> a
 toSTRW a@(ARR _) = toSTRW $ toSEQ a
 toSTRW (MAP a) =
@@ -233,7 +234,7 @@ toRATW (RAT a) = a
 toRATW (INT a) = fromIntegral a
 toRATW (NUM a) = realToFrac a
 toRATW (STR a) = txtRat a
-toRATW (FN _ a) = toRATW $ SEQ a
+toRATW (FN _ _ a) = toRATW $ SEQ a
 toRATW a = toRATW $ toSTR a
 
 toInt :: ANY -> Int
@@ -242,14 +243,14 @@ toInt = truncate . toNUMW
 toFNW :: ANY -> [ANY]
 toFNW UN = []
 toFNW (STR a) = parse [T.unpack a]
-toFNW (FN _ a) = a
+toFNW (FN _ _ a) = a
 toFNW (SEQ a) = a
 toFNW a = [a]
 
 toSEQW :: ANY -> [ANY]
 toSEQW UN = []
 toSEQW (STR a) = STR . T.singleton <$> T.unpack a
-toSEQW (FN _ a) = a
+toSEQW (FN _ _ a) = a
 toSEQW (SEQ a) = a
 toSEQW (ARR a) = toList a
 toSEQW a = [a]
@@ -335,6 +336,6 @@ getItr a@(ARR _) = Just a
 getItr _ = Nothing
 
 getListy :: ANY -> Maybe [ANY]
-getListy (FN _ a) = Just a
+getListy (FN _ _ a) = Just a
 getListy (SEQ a) = Just a
 getListy _ = Nothing

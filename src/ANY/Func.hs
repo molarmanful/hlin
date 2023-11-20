@@ -70,8 +70,8 @@ instance Floating ANY where
 instance Semigroup ANY where
   UN <> a = a
   a <> UN = a
-  FN p a <> b = FN p $ a <> toSEQW b
-  a <> b@(FN p _) = toFN p a <> b
+  FN p s a <> b = FN p s $ a <> toSEQW b
+  a <> b@(FN p s _) = toFN p s a <> b
   SEQ a <> b = SEQ $ a <> toSEQW b
   a <> b@(SEQ _) = toSEQ a <> b
   MAP a <> MAP b = MAP $ a <> b
@@ -125,19 +125,19 @@ azip :: ANY -> ANY -> ANY
 azip = azipWith \a b -> SEQ [a, b]
 
 azipAll :: ANY -> ANY -> ANY -> ANY -> ANY
-azipAll da db a@(FN p _) b@(FN _ _) = toFN p $ azipAll da db (toSEQ a) b
+azipAll da db a@(FN p s _) b@(FN {}) = toFN p s $ azipAll da db (toSEQ a) b
 azipAll da db a@(Listy _) b = matchT a $ fSEQ2 (alignWith $ apair . fromThese da db) a b
 azipAll da db a b@(SEQ _) = azipAll da db (toSEQ a) b
 azipAll da db a b = fARR2 (alignWith (apair . fromThese da db)) a b
 
 -- monads
 
-azipWithM :: Monad f => (ANY -> ANY -> f ANY) -> ANY -> ANY -> f ANY
+azipWithM :: (Monad f) => (ANY -> ANY -> f ANY) -> ANY -> ANY -> f ANY
 azipWithM f a@(Listy x) b = matchT a . SEQ <$> zipWithM f x (toSEQW b)
 azipWithM f a b@(Listy _) = matchT b <$> azipWithM f (toSEQ a) b
 azipWithM f a b = ARR <$> V.zipWithM f (toARRW a) (toARRW b)
 
-azipWithM3 :: Monad f => (ANY -> ANY -> ANY -> f ANY) -> ANY -> ANY -> ANY -> f ANY
+azipWithM3 :: (Monad f) => (ANY -> ANY -> ANY -> f ANY) -> ANY -> ANY -> ANY -> f ANY
 azipWithM3 f x@(Listy a) b c = matchT x . SEQ <$> zipWithM3 f a (toSEQW b) (toSEQW c)
 azipWithM3 f a x@(Listy _) c = matchT x <$> azipWithM3 f (toSEQ a) x c
 azipWithM3 f a b x@(Listy _) = matchT x <$> azipWithM3 f (toSEQ a) b x
@@ -165,17 +165,17 @@ vec3 f a (Itr b) c = vec1 (flip (f a) c) b
 vec3 f a b (Itr c) = vec1 (f a b) c
 vec3 f a b c = f a b c
 
-vecM1 :: Monad f => (ANY -> f ANY) -> ANY -> f ANY
+vecM1 :: (Monad f) => (ANY -> f ANY) -> ANY -> f ANY
 vecM1 f (Itr a) = omapM (vecM1 f) a
 vecM1 f a = f a
 
-vecM2 :: Monad f => (ANY -> ANY -> f ANY) -> ANY -> ANY -> f ANY
+vecM2 :: (Monad f) => (ANY -> ANY -> f ANY) -> ANY -> ANY -> f ANY
 vecM2 f (Itr a) (Itr b) = azipWithM (vecM2 f) a b
 vecM2 f (Itr a) b = vecM1 (`f` b) a
 vecM2 f a (Itr b) = vecM1 (f a) b
 vecM2 f a b = f a b
 
-vecM3 :: Monad f => (ANY -> ANY -> ANY -> f ANY) -> ANY -> ANY -> ANY -> f ANY
+vecM3 :: (Monad f) => (ANY -> ANY -> ANY -> f ANY) -> ANY -> ANY -> ANY -> f ANY
 vecM3 f (Itr a) (Itr b) (Itr c) = azipWithM3 (vecM3 f) a b c
 vecM3 f (Itr a) (Itr b) c = vecM2 (\x y -> f x y c) a b
 vecM3 f (Itr a) b (Itr c) = vecM2 (`f` b) a c
@@ -187,13 +187,13 @@ vecM3 f a b c = f a b c
 
 -- convenience
 
-fNum1 :: (forall a. Num a => a -> a) -> ANY -> ANY
+fNum1 :: (forall a. (Num a) => a -> a) -> ANY -> ANY
 fNum1 f (RAT a) = RAT $ f a
 fNum1 f (INT a) = INT $ f a
 fNum1 f (NUM a) = NUM $ f a
 fNum1 f a = fNum1 f $ toNum a
 
-fNum2 :: (forall a. Num a => a -> a -> a) -> ANY -> ANY -> ANY
+fNum2 :: (forall a. (Num a) => a -> a -> a) -> ANY -> ANY -> ANY
 fNum2 f (NUM a) b = NUM $ f a (toNUMW b)
 fNum2 f a b@(NUM _) = fNum2 f (toNUM a) b
 fNum2 f (RAT a) b = RAT $ f a (toRATW b)
@@ -259,17 +259,17 @@ apow a (INT b) = RAT (toRATW a ^^ b)
 apow (Num a) (Num b) = fNUM2 (**) a b
 apow a b = apow (toNum a) $ toNum b
 
-afmod :: RealFrac a => a -> a -> a
+afmod :: (RealFrac a) => a -> a -> a
 afmod a b
   | m < 0 = m + b
   | otherwise = m
   where
     m = afrem a b
 
-afrem :: RealFrac a => a -> a -> a
+afrem :: (RealFrac a) => a -> a -> a
 afrem a b = a - b * fromInteger (truncate (a / b))
 
-atimes :: Integral b => b -> ANY -> ANY
+atimes :: (Integral b) => b -> ANY -> ANY
 atimes n
   | n <= 0 = (`matchT` UN)
   | otherwise = stimes n

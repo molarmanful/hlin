@@ -1,0 +1,5 @@
+---
+indentation: 2
+indent-wheres: true
+record-brace-space: true
+let-style: inline

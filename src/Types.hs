@@ -15,15 +15,13 @@ import qualified StmContainers.Map as CM
 type ENVS a = ExceptT String (StateT ENV IO) a
 
 data ENV = ENV
-  { lns :: CM.Map PATH LINE,
-    code :: [ANY],
-    path :: PATH,
-    stack :: Seq ANY,
-    scope :: HashMap String ANY,
-    gscope :: CM.Map String ANY,
-    ids :: HashMap String PATH,
-    gids :: CM.Map String PATH,
-    arr :: [Seq ANY]
+  { lns :: CM.Map PATH LINE
+  , code :: ANY
+  , stack :: Seq ANY
+  , gscope :: CM.Map String ANY
+  , ids :: HashMap String PATH
+  , gids :: CM.Map String PATH
+  , arr :: [Seq ANY]
   }
   deriving (Generic)
 
@@ -35,7 +33,7 @@ data ANY
   | NUM Double
   | STR Text
   | CMD String
-  | FN PATH [ANY]
+  | FN PATH SCOPE [ANY]
   | SEQ [ANY]
   | ARR (Vector ANY)
   | MAP (Map ANY ANY)
@@ -45,9 +43,9 @@ type instance Element ANY = ANY
 type Parser a = State ParserS a
 
 data ParserS = ParserS
-  { xs :: [ANY],
-    x :: String,
-    t :: PFlag
+  { xs :: [ANY]
+  , x :: String
+  , t :: PFlag
   }
   deriving (Generic)
 
@@ -58,16 +56,13 @@ dParser = ParserS {xs = [], x = "", t = T_UN}
 
 type LoopFN a = State LoopFNS a
 
-data LoopFNS = LoopFN
-  { xs :: [ANY],
-    ys :: [ANY],
-    n :: Int
-  }
-  deriving (Generic)
+data LoopFNS = LoopFN {xs :: [ANY], ys :: [ANY], n :: Int} deriving (Generic)
 
 dLoopFN :: LoopFNS
 dLoopFN = LoopFN {xs = [], ys = [], n = 1}
 
 newtype PATH = PATH (FilePath, Int) deriving (Show, Eq, Ord, Hashable)
+
+type SCOPE = HashMap String ANY
 
 newtype LINE = LINE (String, Maybe ANY)
